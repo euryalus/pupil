@@ -121,63 +121,62 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
         result.confidence = confidence2D;
         result.circle = circle;
 
-
-        // only if the detected 2d pupil fits our model well we trust it to update the Kalman filter.
-        if (circle != Circle::Null && observationFit.value > 0.99 ){
-            predictPupilState( deltaTime );
-            auto cc  = correctPupilState( circle );
-            // if (mDebug) {
-            //     result.predictedCircle = cc;
-            // }
-        }
-        else {
-            do3DSearch = true;
-        }
-
-        for (auto& modelPtr : mAlternativeModelsPtrs) {
-             modelPtr->presentObservation(observation3DPtr, mAverageFramerate.getAverage() );
-        }
-
-    }
-    else {
-        do3DSearch = true;
-    }
-
-    if (do3DSearch  && mCurrentSphere != Sphere::Null) { // if it's too weak we try to find a better one in 3D
-
-        // since the raw edges are used to find a better circle fit
-        // they need to be converted in the out coordinate system
-        for (cv::Point& p : observation2D->raw_edges) {
-            p += roi.tl();
-            p.x -= image_width_half;
-            p.y = image_height_half - p.y;
-        }
-
-        // whenever we don't have a good 2D fit we use the model's state to predict the new pupil
-        // and us this as as starting point for the search
-        auto predictedCircle = predictPupilState( deltaTime );
-
-        //fitCircle(observation2D->contours, props, result );
-        //filterCircle(observation2D->raw_edges, props, result);
-        // filterCircle2( predictedCircle , observation2D->raw_edges, props, result);
-        filterCircle3( predictedCircle , observation2D->raw_edges, props, result);
-
-
-        if (result.circle != Circle::Null){
-           // mPupilState.measurementNoiseCov.at<double>(0,0) = 1e-4; // circle size has a different variance
-           // mPupilState.measurementNoiseCov.at<double>(1,1) = 1e-4; // circle size has a different variance
-
-            auto estimatedCircle = correctPupilState( result.circle );
-           // mPupilState.measurementNoiseCov.at<double>(0,0) = 1e-5; // circle size has a different variance
-           // mPupilState.measurementNoiseCov.at<double>(1,1) = 1e-5; // circle size has a different variance
-
-            //result.circle = estimatedCircle;
-            if (mDebug) {
-               result.predictedCircle = estimatedCircle;
-            }
-        }
+//        // only if the detected 2d pupil fits our model well we trust it to update the Kalman filter.
+//        if (circle != Circle::Null && observationFit.value > 0.99 ){
+//            predictPupilState( deltaTime );
+//            auto cc  = correctPupilState( circle );
+//            // if (mDebug) {
+//            //     result.predictedCircle = cc;
+//            // }
+//        }
+//        else {
+//            do3DSearch = true;
+//        }
+//
+//        for (auto& modelPtr : mAlternativeModelsPtrs) {
+//             modelPtr->presentObservation(observation3DPtr, mAverageFramerate.getAverage() );
+//        }
 
     }
+//    else {
+//        do3DSearch = true;
+//    }
+
+//    if (do3DSearch  && mCurrentSphere != Sphere::Null) { // if it's too weak we try to find a better one in 3D
+//
+//        // since the raw edges are used to find a better circle fit
+//        // they need to be converted in the out coordinate system
+//        for (cv::Point& p : observation2D->raw_edges) {
+//            p += roi.tl();
+//            p.x -= image_width_half;
+//            p.y = image_height_half - p.y;
+//        }
+//
+//        // whenever we don't have a good 2D fit we use the model's state to predict the new pupil
+//        // and us this as as starting point for the search
+//        auto predictedCircle = predictPupilState( deltaTime );
+//
+//        //fitCircle(observation2D->contours, props, result );
+//        //filterCircle(observation2D->raw_edges, props, result);
+//        // filterCircle2( predictedCircle , observation2D->raw_edges, props, result);
+//        filterCircle3( predictedCircle , observation2D->raw_edges, props, result);
+//
+//
+//        if (result.circle != Circle::Null){
+//           // mPupilState.measurementNoiseCov.at<double>(0,0) = 1e-4; // circle size has a different variance
+//           // mPupilState.measurementNoiseCov.at<double>(1,1) = 1e-4; // circle size has a different variance
+//
+//            auto estimatedCircle = correctPupilState( result.circle );
+//           // mPupilState.measurementNoiseCov.at<double>(0,0) = 1e-5; // circle size has a different variance
+//           // mPupilState.measurementNoiseCov.at<double>(1,1) = 1e-5; // circle size has a different variance
+//
+//            //result.circle = estimatedCircle;
+//            if (mDebug) {
+//               result.predictedCircle = estimatedCircle;
+//            }
+//        }
+//
+//    }
 
     // error variance
     double positionError = getPupilPositionErrorVar();
@@ -206,7 +205,7 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
    }
 
     // contains the logic for building alternative models if the current one is bad
-    checkModels(modelSensitivity,observation2D->timestamp );
+    //checkModels(modelSensitivity,observation2D->timestamp );
     result.modelID = mActiveModelPtr->getModelID();
     result.modelBirthTimestamp = mActiveModelPtr->getBirthTimestamp();
     result.modelConfidence = mActiveModelPtr->getConfidence();

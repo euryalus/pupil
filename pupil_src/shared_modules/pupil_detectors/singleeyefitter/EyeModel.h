@@ -65,21 +65,22 @@ namespace singleeyefitter {
 class EyeModel {
 
         typedef singleeyefitter::Sphere<double> Sphere;
+
     public:
 
+        // CONSTRUCTORS
         EyeModel( int modelId, double timestamp,  double focalLength, Vector3 cameraCenter, int initialUncheckedPupils = 3, double binResolution = 0.05  );
         EyeModel(const EyeModel&) = delete;
         //EyeModel(EyeModel&&); // we need a explicit 1/Move constructor because of the mutex
         ~EyeModel();
 
-
+        // DOOR TO THE OUTER WORLD
         std::pair<Circle,ConfidenceValue> presentObservation(const ObservationPtr observation, double averageFramerate  );
+
+
+        // GETTER
         Sphere getSphere() const;
         Sphere getInitialSphere() const;
-
-        // how sensitive the model is for wrong observations
-        // if we have to many wring observation new models are created
-        // void setSensitivity( float sensitivity ); NOT USED
 
         // Describing how good different properties of the Eye are
         double getMaturity() const ; // How much spatial variance there is
@@ -95,9 +96,7 @@ class EyeModel {
         std::vector<Vector3> getBinPositions() const {return mBinPositions;};
         // ----- Visualization END --------
 
-
     private:
-
 
         struct PupilParams {
             double theta, psi, radius;
@@ -110,6 +109,10 @@ class EyeModel {
             PupilParams mParams;
             const ObservationPtr mObservationPtr;
             Pupil( const ObservationPtr observationPtr ) : mObservationPtr( observationPtr ){};
+            Pupil( const ObservationPtr observationPtr, PupilParams params ) : mObservationPtr( observationPtr ){
+                mParams = PupilParams(params.theta, params.psi, params.radius);
+            };
+
         };
 
         Sphere findSphereCenter( bool use_ransac = true);
@@ -126,11 +129,11 @@ class EyeModel {
         const Circle& selectUnprojectedCircle(const Sphere& sphere, const std::pair<const Circle, const Circle>& circles) const;
         void initialiseSingleObservation( const Sphere& sphere, Pupil& pupil) const;
         Circle getIntersectedCircle( const Sphere& sphere, const Circle& circle) const;
+        Circle getInitialCircle( const Sphere& sphere, const Circle& circle ) const;
+        std::pair<PupilParams, double> getRefractedCircle( const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation ) const;
 
         //Circle circleFromParams( CircleParams& params) const;
         Circle circleFromParams(const Sphere& eye,const  PupilParams& params) const;
-
-
 
         std::unordered_map<Vector2, bool, math::matrix_hash<Vector2>> mSpatialBins;
         std::vector<Vector3> mBinPositions; // for visualization
@@ -139,7 +142,6 @@ class EyeModel {
         std::mutex mPupilMutex;
         std::thread mWorker;
         Clock::time_point mLastModelRefinementTime;
-
 
         // Factors which describe how good certain properties of the model are
         //std::list<double> mModelSupports; // values to calculate the average
@@ -157,13 +159,18 @@ class EyeModel {
         const int mModelID;
         double mBirthTimestamp;
 
-        Sphere mSphere;   // Thread sensitive
-        Sphere mInitialSphere;    // Thread sensitive
-        std::vector<Pupil> mSupportingPupils; // just used within the worker thread, Thread sensitive
-        int mSupportingPupilSize; // Thread sensitive, use this to get the SupportedPupil size
+        double mEdgeNumber; //Number of edges per pupil used during optimization
+        double mEyeballRadius;
+        double mCorneaRadius;
+        double mIrisRadius;
 
-        // observations are saved here and only if needed transfered to mObservation
-        // since mObservations needs a mutex
+        Sphere mSphere;                       // Thread sensitive
+        Sphere mInitialSphere;                // Thread sensitive
+        std::vector<Pupil> mSupportingPupils; // just used within the worker thread, Thread sensitive
+        int mSupportingPupilSize;             // Thread sensitive, use this to get the SupportedPupil size
+
+        // observations are saved here and only if needed transferred to mSupportingPupils
+        // since mSupportingPupils needs a mutex
         std::vector<Pupil> mSupportingPupilsToAdd;
 };
 
