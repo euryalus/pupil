@@ -15,6 +15,7 @@ assert av.__version__ >= '0.2.5'
 
 
 from .base_backend import Base_Source, Base_Manager
+from camera_models import load_intrinsics
 
 import numpy as np
 from time import time,sleep
@@ -142,7 +143,7 @@ class File_Source(Base_Source):
             timestamps_path,ext =  os.path.splitext(source_path)
             timestamps = timestamps_path+'_timestamps.npy'
             try:
-                self.timestamps = np.load(timestamps)
+                self.timestamps = np.load(timestamps).tolist()
             except IOError:
                 logger.warning("did not find timestamps file, making timetamps up based on fps and frame count. Frame count and timestamps are not accurate!")
                 frame_rate = float(self.video_stream.average_rate)
@@ -161,6 +162,9 @@ class File_Source(Base_Source):
         self.seek_to_frame(0)
         self.average_rate = (self.timestamps[-1]-self.timestamps[0])/len(self.timestamps)
 
+        loc, name = os.path.split(os.path.splitext(source_path)[0])
+        self._intrinsics = load_intrinsics(loc, name, self.frame_size)
+
     def ensure_initialisation(fallback_func=None):
         from functools import wraps
 
@@ -178,6 +182,10 @@ class File_Source(Base_Source):
 
     @property
     def initialised(self):
+        return self._initialised
+
+    @property
+    def intrinsics(self):
         return self._initialised
 
     @property
@@ -350,24 +358,30 @@ class File_Manager(Base_Manager):
             eligible_files.insert(0, (None, 'Select to activate'))
             return zip(*eligible_files)
 
-        def activate(full_path):
-            if not full_path:
-                return
-            settings = {
-                'source_path': full_path,
-                'timed_playback': True
-            }
-            self.activate_source(settings)
-
         ui_elements.append(ui.Selector(
             'selected_file',
             selection_getter=split_enumeration,
             getter=lambda: None,
-            setter=activate,
+            setter=self.activate,
             label='Video File'
         ))
 
         self.g_pool.capture_selector_menu.extend(ui_elements)
+
+    def activate(self, full_path):
+        if not full_path:
+            return
+        settings = {
+            'source_path': full_path,
+            'timed_playback': True
+        }
+        self.activate_source(settings)
+
+    def on_drop(self, paths):
+        for p in paths:
+            if os.path.splitext(p)[-1] in self.file_exts:
+                self.activate(p)
+                return
 
     def enumerate_folder(self,path):
         eligible_files  = []

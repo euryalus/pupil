@@ -21,6 +21,7 @@ from pyrealsense.constants import rs_stream, rs_option
 from version_utils import VersionFormat
 from .base_backend import Base_Source, Base_Manager
 from av_writer import AV_Writer
+from camera_models import load_intrinsics
 
 import gl_utils
 from pyglui import cygl
@@ -191,6 +192,8 @@ class Realsense_Source(Base_Source):
                  align_streams=False, preview_depth=False,
                  device_options=(), record_depth=True):
         super().__init__(g_pool)
+        self.color_frame_index = 0
+        self.depth_frame_index = 0
         self.device = None
         self.service = pyrs.Service()
         self.align_streams = align_streams
@@ -270,6 +273,7 @@ class Realsense_Source(Base_Source):
         self.device = self.service.Device(device_id, streams=self.streams)
 
         self.controls = Realsense_Controls(self.device, device_options)
+        self._intrinsics = load_intrinsics(self.g_pool.user_dir, self.name, self.frame_size)
 
         self.deinit_gui()
         self.init_gui()
@@ -335,6 +339,8 @@ class Realsense_Source(Base_Source):
                 self.last_color_frame_ts = last_color_frame_ts
                 color = ColorFrame(self.device)
                 color.timestamp = current_time
+                color.index = self.color_frame_index
+                self.color_frame_index += 1
             else:
                 color = None
 
@@ -343,6 +349,8 @@ class Realsense_Source(Base_Source):
                 self.last_depth_frame_ts = last_depth_frame_ts
                 depth = DepthFrame(self.device)
                 depth.timestamp = current_time
+                depth.index = self.depth_frame_index
+                self.depth_frame_index += 1
             else:
                 depth = None
 
@@ -433,7 +441,7 @@ class Realsense_Source(Base_Source):
                 try:
                     self.device.reset_device_options_to_default(self.controls.keys())
                 except pyrs.RealsenseError as err:
-                    logger.error('Resetting device options failed')
+                    logger.info('Resetting some device options failed')
                     logger.debug('Reason: {}'.format(err))
                 finally:
                     self.controls.refresh()
@@ -518,6 +526,10 @@ class Realsense_Source(Base_Source):
 
         self.depth_video_writer.close()
         self.depth_video_writer = None
+
+    @property
+    def intrinsics(self):
+        return self._intrinsics
 
     @property
     def frame_size(self):

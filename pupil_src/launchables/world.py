@@ -113,6 +113,7 @@ def world(timebase, eyes_are_alive, ipc_pub_url, ipc_sub_url,
     from pupil_data_relay import Pupil_Data_Relay
     from remote_recorder import Remote_Recorder
     from audio_capture import Audio_Capture
+    from accuracy_visualizer import Accuracy_Visualizer
 
     # UI Platform tweaks
     if platform.system() == 'Linux':
@@ -152,7 +153,7 @@ def world(timebase, eyes_are_alive, ipc_pub_url, ipc_sub_url,
     runtime_plugins = [p for p in runtime_plugins if not issubclass(p, Base_Manager)]
     user_launchable_plugins = [Audio_Capture, Pupil_Groups, Frame_Publisher, Pupil_Remote, Time_Sync, Surface_Tracker,
                                Annotation_Capture, Log_History, Fixation_Detector,
-                               Blink_Detection, Remote_Recorder] + runtime_plugins
+                               Blink_Detection, Remote_Recorder, Accuracy_Visualizer] + runtime_plugins
     system_plugins = [Log_Display, Display_Recent_Gaze, Recorder, Pupil_Data_Relay]
     plugin_by_index = (system_plugins + user_launchable_plugins + calibration_plugins
                        + gaze_mapping_plugins + manager_classes + source_classes)
@@ -210,6 +211,11 @@ def world(timebase, eyes_are_alive, ipc_pub_url, ipc_sub_url,
 
     def on_scroll(window, x, y):
         g_pool.gui.update_scroll(x, y * scroll_factor)
+
+    def on_drop(window, count, paths):
+        paths = [paths[x].decode('utf-8') for x in range(count)]
+        for p in g_pool.plugins:
+            p.on_drop(paths)
 
     tick = delta_t()
 
@@ -388,6 +394,7 @@ def world(timebase, eyes_are_alive, ipc_pub_url, ipc_sub_url,
     glfw.glfwSetMouseButtonCallback(main_window, on_window_mouse_button)
     glfw.glfwSetCursorPosCallback(main_window, on_pos)
     glfw.glfwSetScrollCallback(main_window, on_scroll)
+    glfw.glfwSetDropCallback(main_window, on_drop)
 
     # gl_state settings
     gl_utils.basic_gl_setup()
