@@ -103,11 +103,14 @@ cdef inline prepareForVisualization3D(  Detector3DResult& result ):
 
     py_visualizationResult['edges'] = getEdges(result)
     py_visualizationResult['circle'] = getCircle(result);
+    py_visualizationResult['cost'] = result.cost
     py_visualizationResult['predicted_circle'] = getPredictedCircle(result);
 
     models = []
     for model in result.models:
         props = {}
+        props['optimized_parameters'] = model.optimizedParameters
+        props['cost_per_pupil'] = model.costPerPupil
         props['bin_positions'] = getBinPositions(model)
         props['sphere'] = getSphere(model)
         props['initial_sphere'] = getInitialSphere(model)

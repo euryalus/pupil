@@ -2,6 +2,12 @@
 #ifndef EYEMODEL_H__
 #define EYEMODEL_H__
 
+#include <ceres/ceres.h>
+#include <ceres/problem.h>
+#include <ceres/autodiff_cost_function.h>
+#include <ceres/solver.h>
+#include <ceres/jet.h>
+
 #include "common/types.h"
 #include "mathHelper.h"
 #include <thread>
@@ -69,14 +75,13 @@ class EyeModel {
     public:
 
         // CONSTRUCTORS
-        EyeModel( int modelId, double timestamp,  double focalLength, Vector3 cameraCenter, int initialUncheckedPupils = 3, double binResolution = 0.05  );
+        EyeModel( int modelId, double timestamp,  double focalLength, Vector3 cameraCenter, int initialUncheckedPupils = 5, double binResolution = 0.05  );
         EyeModel(const EyeModel&) = delete;
         //EyeModel(EyeModel&&); // we need a explicit 1/Move constructor because of the mutex
         ~EyeModel();
 
         // DOOR TO THE OUTER WORLD
-        std::pair<Circle,ConfidenceValue> presentObservation(const ObservationPtr observation, double averageFramerate  );
-
+        std::pair<Circle, double> presentObservation(const ObservationPtr observation, double averageFramerate  );
 
         // GETTER
         Sphere getSphere() const;
@@ -88,6 +93,9 @@ class EyeModel {
         double getPerformance() const; // How much do we believe in this model
         double getPerformanceGradient() const;
         double getSolverFit() const ; // The residual of the sphere calculation
+        std::vector<double> getOptimizedParameters() const;
+        std::vector<double> getCostPerPupil() const;
+        int getNumResidualBlocks() const;
 
         int getModelID() const { return mModelID; };
         double getBirthTimestamp() const { return mBirthTimestamp; };
@@ -99,19 +107,28 @@ class EyeModel {
     private:
 
         struct PupilParams {
+
             double theta, psi, radius;
             PupilParams() : theta(0), psi(0), radius(0) {};
             PupilParams(double theta, double psi, double radius) : theta(theta), psi(psi), radius(radius){};
+
         };
 
-        struct Pupil{
+        struct Pupil {
+
             Circle mCircle;
             PupilParams mParams;
             const ObservationPtr mObservationPtr;
-            Pupil( const ObservationPtr observationPtr ) : mObservationPtr( observationPtr ){};
+            //Pupil( const ObservationPtr observationPtr ) : mObservationPtr( observationPtr ){};
             Pupil( const ObservationPtr observationPtr, PupilParams params ) : mObservationPtr( observationPtr ){
                 mParams = PupilParams(params.theta, params.psi, params.radius);
+                optimizedParams[0] = params.theta;
+                optimizedParams[1] = params.psi;
+                optimizedParams[2] = params.radius;
             };
+            ceres::ResidualBlockId mResidualBlockId;
+            double * const optimizedParams = static_cast<double * const>(malloc(3*sizeof(double)));
+            int ceres_toggle = 0;
 
         };
 
@@ -163,6 +180,12 @@ class EyeModel {
         double mEyeballRadius;
         double mCorneaRadius;
         double mIrisRadius;
+
+        ceres::Problem problem;
+        std::vector<double> mCostPerBlock;  // Here we store after each optimization the current cost per residual block
+        double * const eye_params = static_cast<double * const>(malloc(5*sizeof(double)));
+        std::vector<double> mOptimizedParams;
+        void removePupilFromOptimization(std::vector<Pupil>::iterator iter);
 
         Sphere mSphere;                       // Thread sensitive
         Sphere mInitialSphere;                // Thread sensitive

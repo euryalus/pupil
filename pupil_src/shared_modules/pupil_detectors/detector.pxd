@@ -100,6 +100,8 @@ cdef extern from 'common/types.h':
         int image_height
 
     cdef struct ModelDebugProperties:
+        vector[double] optimizedParameters
+        vector[double] costPerPupil
         Sphere[double] sphere
         Sphere[double] initialSphere
         vector[Vector3] binPositions
@@ -111,9 +113,11 @@ cdef extern from 'common/types.h':
         int modelID
         double birthTimestamp
 
+
     cdef struct Detector3DResult:
         double timestamp
         Circle circle
+        double cost
         Ellipse ellipse
         Sphere[double] sphere
         Ellipse projectedSphere

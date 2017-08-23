@@ -70,6 +70,8 @@ namespace singleeyefitter {
     };
 
     struct ModelDebugProperties{
+        std::vector<double> optimizedParameters;
+        std::vector<double> costPerPupil;
         Sphere<double> sphere;
         Sphere<double> initialSphere;
         std::vector<Vector3> binPositions;
@@ -85,6 +87,7 @@ namespace singleeyefitter {
     struct Detector3DResult {
         double confidence =  0.0 ;
         Circle circle  = Circle::Null;
+        double cost;
         Ellipse ellipse = Ellipse::Null; // the circle projected back to 2D
         Sphere<double> sphere = Sphere<double>::Null;
         Ellipse projectedSphere = Ellipse::Null; // the sphere projected back to 2D

@@ -108,18 +108,19 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
     auto observation3DPtr = std::make_shared<const Observation>(observation2D, mFocalLength);
     bool do3DSearch = false;
     // 2d observation good enough to show to models?
-    if (observation2D->confidence >= 0.7) {
+    if (observation2D->confidence >= 0.2) {
 
         // allow each model to decide by themself if the new observation supports the model or not
-        auto circleAndFit = mActiveModelPtr->presentObservation(observation3DPtr, mAverageFramerate.getAverage()  );
+        auto circleAndFit = mActiveModelPtr->presentObservation( observation3DPtr, mAverageFramerate.getAverage());
         auto circle = circleAndFit.first;
-        auto observationFit = circleAndFit.second;
+        auto cost = circleAndFit.second;
 
         // overwrite confidence based on 3D observation
         double confidence2D = observation2D->confidence;
         // result.confidence = confidence2D * (1.0 - observationFit.confidence) + observationFit.value * observationFit.confidence;
         result.confidence = confidence2D;
         result.circle = circle;
+        result.cost = cost;
 
 //        // only if the detected 2d pupil fits our model well we trust it to update the Kalman filter.
 //        if (circle != Circle::Null && observationFit.value > 0.99 ){
@@ -179,8 +180,8 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
 //    }
 
     // error variance
-    double positionError = getPupilPositionErrorVar();
-    double sizeError = getPupilSizeErrorVar();
+//    double positionError = getPupilPositionErrorVar();
+//    double sizeError = getPupilSizeErrorVar();
 
     //std::cout << "positionError: " << positionError << std::endl;
     //std::cout << "sizeError: " << sizeError << std::endl;
@@ -211,10 +212,11 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
     result.modelConfidence = mActiveModelPtr->getConfidence();
 
     if (mDebug) {
+
         result.models.reserve(mAlternativeModelsPtrs.size() + 1);
-
-
         ModelDebugProperties props;
+        props.optimizedParameters = mActiveModelPtr->getOptimizedParameters();
+        props.costPerPupil = mActiveModelPtr->getCostPerPupil();
         props.sphere = mActiveModelPtr->getSphere();
         props.initialSphere = mActiveModelPtr->getInitialSphere();
         props.binPositions = mActiveModelPtr->getBinPositions();
@@ -230,6 +232,7 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
         for (const auto& modelPtr : mAlternativeModelsPtrs) {
 
             ModelDebugProperties props;
+            props.optimizedParameters = modelPtr->getOptimizedParameters();
             props.sphere = modelPtr->getSphere();
             props.initialSphere = modelPtr->getInitialSphere();
             props.binPositions = modelPtr->getBinPositions();
@@ -689,6 +692,7 @@ Edges3D EyeModelFitter::unprojectEdges(const Edges2D& edges) const
 
 // }
 
+
 void  EyeModelFitter::filterCircle2( const Circle& predictedCircle, const Edges2D& rawEdges , const Detector3DProperties& props,  Detector3DResult& result) const
 {
 
@@ -799,6 +803,7 @@ void  EyeModelFitter::filterCircle2( const Circle& predictedCircle, const Edges2
     if( mDebug )
       result.edges = std::move(finalInliers);  // visualize
 }
+
 
 void  EyeModelFitter::filterCircle3( const Circle& predictedCircle, const Edges2D& rawEdges , const Detector3DProperties& props,  Detector3DResult& result) const
 {
@@ -981,6 +986,7 @@ Circle EyeModelFitter::correctPupilState( const Circle& circle){
     return estimatedCircle;
 }
 
+
 double EyeModelFitter::getPupilPositionErrorVar() const {
 
     // error variance
@@ -993,6 +999,7 @@ double EyeModelFitter::getPupilPositionErrorVar() const {
 
 }
 
+
 double EyeModelFitter::getPupilSizeErrorVar() const {
 
     // error variance
@@ -1000,5 +1007,6 @@ double EyeModelFitter::getPupilSizeErrorVar() const {
     return sizeError;
 
 }
+
 
 } // singleeyefitter

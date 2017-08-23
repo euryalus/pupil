@@ -267,15 +267,14 @@ Eigen::Matrix<T, 3, 1> map_to_tangent_space(const cv::Point& inlier,
 }
 
 template<typename Scalar>
-class RefractionResidualFunctionEyeParams
+class RefractionResidualFunction
 {
 
    public:
 
-        RefractionResidualFunctionEyeParams(const std::vector<cv::Point>& edges,
+        RefractionResidualFunction(const std::vector<cv::Point>& edges,
                                             const Scalar& eyeball_radius,
                                             const Scalar& focal_length,
-                                            const int idx,
                                             const cv::Point ellipse_center,
                                             const double lambda_1,
                                             const double lambda_2,
@@ -283,7 +282,6 @@ class RefractionResidualFunctionEyeParams
                                             edges(edges),
                                             eyeball_radius(eyeball_radius),
                                             focal_length(focal_length),
-                                            idx(idx),
                                             ellipse_center(ellipse_center),
                                             lambda_1(lambda_1),
                                             lambda_2(lambda_2),
@@ -344,7 +342,6 @@ class RefractionResidualFunctionEyeParams
         std::vector<cv::Point> internal_edges;
         const Scalar& eyeball_radius;
         const Scalar& focal_length;
-        const int idx;
         std::string filename;
         const cv::Point ellipse_center;
         double lambda_1;
