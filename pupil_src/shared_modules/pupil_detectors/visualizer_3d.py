@@ -256,8 +256,10 @@ class Eye_Visualizer(Visualizer):
                 self.angles = [np.arccos(np.dot(pupil, self.eye_camera_axis))/(np.pi/2.0) for pupil in self.optimized_pupils_cart]
                 self.vertices = list(zip(self.angles, np.clip(np.log10(np.array(result['models'][0]['cost_per_pupil']))+7, 0, 3)))
 
-
             glutils.draw_points(self.vertices, size=10, color=RGBA(255 / 255., 173 / 255., 51 / 255., 0.8))
+
+            cost_vertices = list(zip(np.linspace(0, len(self.cost_history) / 200., len(self.cost_history)), np.clip(self.cost_history,0,3)))
+            glutils.draw_polyline(cost_vertices, thickness=3, color=RGBA(1.0, 0, 0, 0.9))
 
             histo = np.histogram(self.angles, bins=np.linspace(0, 1, 10))
 
@@ -266,13 +268,12 @@ class Eye_Visualizer(Visualizer):
                 normal /= np.linalg.norm(normal)
                 angle = np.arccos(np.dot(normal, self.eye_camera_axis))/(np.pi/2.0)
                 cost = max(0,min(np.log10(result['cost'])+7,3))
-                glutils.draw_points([[angle, cost]], size=10, color=RGBA(0.1, 0.5, 1.0, 0.6))
+                glutils.draw_points([[angle, cost]], size=15, color=RGBA(1.0, 1.0, 1.0, 0.9))
         except:
             pass
 
-        cost_vertices = list(zip(np.linspace(0,len(self.cost_history)/200.,len(self.cost_history)), self.cost_history))
-
-        glutils.draw_polyline(cost_vertices, thickness=3, color=RGBA(1.0, 0, 0, 0.9))
+        # cost_vertices = list(zip(np.linspace(0,len(self.cost_history)/200.,len(self.cost_history)), self.cost_history))
+        # glutils.draw_polyline(cost_vertices, thickness=3, color=RGBA(1.0, 0, 0, 0.9))
 
         glPopMatrix()
         glMatrixMode(GL_PROJECTION)

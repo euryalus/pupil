@@ -141,11 +141,35 @@ std::pair<Circle, double> EyeModel::presentObservation(const ObservationPtr newO
         // check first if the observations is strong enough to build the eye model ontop of it
         // the confidence is above 0.99 only if we have a strong prior.
         // also binchecking
-        if (confidence2D > 0.85 && isSpatialRelevant(unprojectedCircle)) {
+
+        // here we decide whether we take a pupil into account, in particular, we are less srict on the confidence, if the angle with respect
+        // to the optical axis is large
+        Eigen::Matrix<double, 3, 1> normal = math::sph2cart<double>( currentPupilParams.radius,
+                                                                             currentPupilParams.theta,
+                                                                             currentPupilParams.psi);
+        normal.normalize();
+        Eigen::Matrix<double, 3, 1> axis = -mSphere.center;
+        axis.normalize();
+        double angle = acos(normal.dot(axis));
+        int bin_number = static_cast<int>(angle/(3.142/20.0));
+
+        if (
+
+            (bin_number<7 &&
+            ((mSupportingPupilSize>60 && (confidence2D > 0.99 && isSpatialRelevant(unprojectedCircle))) ||
+            ((mSupportingPupilSize>30 && mSupportingPupilSize<=60) && (confidence2D > 0.97 && isSpatialRelevant(unprojectedCircle))) ||
+            (mSupportingPupilSize<=30 && (confidence2D > 0.95 && isSpatialRelevant(unprojectedCircle))))) ||
+
+            (bin_number>=7 &&
+            ((mSupportingPupilSize>60 && (confidence2D > 0.8 && isSpatialRelevant(unprojectedCircle))) ||
+            ((mSupportingPupilSize>30 && mSupportingPupilSize<=60) && (confidence2D > 0.7 && isSpatialRelevant(unprojectedCircle))) ||
+            (mSupportingPupilSize<=30 && (confidence2D > 0.6 && isSpatialRelevant(unprojectedCircle)))))
+
+            ){
             shouldAddObservation = true;
-        } else {
+            }else{
             //std::cout << " spatial check failed"  << std::endl;
-        }
+            }
 
     }
     else { // no valid sphere yet
@@ -227,7 +251,9 @@ EyeModel::Sphere EyeModel::findSphereCenter( bool use_ransac /*= true*/)
     // should we save them some where else ?
     std::vector<Line> pupilGazelinesProjected;
     for (const auto& pupil : mSupportingPupils) {
+        if (pupil.ceres_toggle<2){
         pupilGazelinesProjected.push_back( pupil.mObservationPtr->getProjectedCircleGaze() );
+        }
     }
 
     // Get eyeball center
@@ -380,23 +406,26 @@ EyeModel::Sphere EyeModel::initialiseModel()
     int eyeRadiusCount = 0;
 
     for (const auto& pupil : mSupportingPupils) {
-
-        // Intersect the gaze from the eye center with the pupil circle
-        // center projection line (with perfect estimates of gaze, eye
-        // center and pupil circle center, these should intersect,
-        // otherwise find the nearest point to both lines)
-        Vector3 pupilCenter = nearest_intersect(Line3(sphere.center, pupil.mCircle.normal),
-                               Line3(mCameraCenter, pupil.mCircle.center.normalized()));
-        auto distance = (pupilCenter - sphere.center).norm();
-        eyeRadiusAcc += distance;
-        ++eyeRadiusCount;
+        if (pupil.ceres_toggle<2){
+            // Intersect the gaze from the eye center with the pupil circle
+            // center projection line (with perfect estimates of gaze, eye
+            // center and pupil circle center, these should intersect,
+            // otherwise find the nearest point to both lines)
+            Vector3 pupilCenter = nearest_intersect(Line3(sphere.center, pupil.mCircle.normal),
+                                   Line3(mCameraCenter, pupil.mCircle.center.normalized()));
+            auto distance = (pupilCenter - sphere.center).norm();
+            eyeRadiusAcc += distance;
+            ++eyeRadiusCount;
+        }
     }
 
     // Set the eye radius as the mean distance from pupil centers to eye center
     sphere.radius = eyeRadiusAcc / eyeRadiusCount;
 
     for ( auto& pupil : mSupportingPupils) {
-        initialiseSingleObservation(sphere, pupil);
+        if (pupil.ceres_toggle<2){
+            initialiseSingleObservation(sphere, pupil);
+        }
     }
 
     // Scale eye to anthropomorphic average radius of 12mm
@@ -404,11 +433,13 @@ EyeModel::Sphere EyeModel::initialiseModel()
     sphere.radius = 12.0;
     sphere.center *= scale;
     for ( auto& pupil : mSupportingPupils) {
-        pupil.mParams.radius *= scale;
-        pupil.mCircle = circleFromParams(sphere, pupil.mParams);
-        pupil.optimizedParams[0] = pupil.mParams.theta;
-        pupil.optimizedParams[1] = pupil.mParams.psi;
-        pupil.optimizedParams[2] = pupil.mParams.radius;
+        if (pupil.ceres_toggle<2){
+            pupil.mParams.radius *= scale;
+            pupil.mCircle = circleFromParams(sphere, pupil.mParams);
+            pupil.optimizedParams[0] = pupil.mParams.theta;
+            pupil.optimizedParams[1] = pupil.mParams.psi;
+            pupil.optimizedParams[2] = pupil.mParams.radius;
+        }
     }
 
     // SET INITIAL EYE PARAMETERS
@@ -445,7 +476,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
 
             pupil.mResidualBlockId = problem.AddResidualBlock(
             new ceres::AutoDiffCostFunction<RefractionResidualFunction<double>, ceres::DYNAMIC, 3, 2, 3>(
-            new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, 1.0, 0.0, N_),
+            new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, 1.0, 2.0, N_),
             N_+1),
             NULL, &eye_params[0], &eye_params[3], &(pupil.optimizedParams[0]));
 
@@ -459,7 +490,8 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     //SAVE ALL RESIDUALBLOCK-IDS IN A VECTOR
     std::vector<ceres::ResidualBlockId> residualblock_vector;
     problem.GetResidualBlocks(&residualblock_vector);
-    std::cout << residualblock_vector.size() << std::endl;
+    std::cout << residualblock_vector.size() << " residual blocks" << std::endl;
+    std::cout << mSupportingPupilSize << " pupils in list" << std::endl;
 
     // SETTING BOUNDS - Z-POSITION OF SPHERE
     problem.SetParameterLowerBound(&eye_params[0], 2, 15.0);
@@ -565,29 +597,29 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     // REMOVE PUPILS FROM OPTIMIZATION
     std::vector<int> bins{0,0,0,0,0,0,0,0,0,0,0};
 
-    if (mSupportingPupilSize>50){
-        std::vector<Pupil>::iterator iter = mSupportingPupils.end();
-        while (iter!=mSupportingPupils.begin()){
-            if ((*iter).ceres_toggle==1){
-                Eigen::Matrix<double, 3, 1> normal = math::sph2cart<double>((*iter).optimizedParams[2],
-                                                                            (*iter).optimizedParams[0],
-                                                                            (*iter).optimizedParams[1]);
-                normal.normalize();
-
-                Eigen::Matrix<double, 3, 1> axis = -sphere.center;
-                axis.normalize();
-
-                double angle = acos(normal.dot(axis));
-                int bin_number = static_cast<int>(angle/(3.142/20.0));
-                if (bins[bin_number]>10){
-                    removePupilFromOptimization(iter);
-                }else{
-                    bins[bin_number] += 1;
-                }
-            }
-            --iter;
-        }
-    }
+//    if (mSupportingPupilSize>50){
+//        std::vector<Pupil>::iterator iter = mSupportingPupils.end();
+//        while (iter!=mSupportingPupils.begin()){
+//            if ((*iter).ceres_toggle==1){
+//                Eigen::Matrix<double, 3, 1> normal = math::sph2cart<double>((*iter).optimizedParams[2],
+//                                                                            (*iter).optimizedParams[0],
+//                                                                            (*iter).optimizedParams[1]);
+//                normal.normalize();
+//
+//                Eigen::Matrix<double, 3, 1> axis = -sphere.center;
+//                axis.normalize();
+//
+//                double angle = acos(normal.dot(axis));
+//                int bin_number = static_cast<int>(angle/(3.142/20.0));
+//                if (bins[bin_number]>10){
+//                    removePupilFromOptimization(iter);
+//                }else{
+//                    bins[bin_number] += 1;
+//                }
+//            }
+//            --iter;
+//        }
+//    }
 
     return summary.final_cost;
 
@@ -958,7 +990,7 @@ std::pair<EyeModel::PupilParams, double> EyeModel::getRefractedCircle( const Sph
       }
 
       problem.AddResidualBlock(new ceres::AutoDiffCostFunction < RefractionResidualFunction<double>, ceres::DYNAMIC, 3, 2, 3 > (
-                               new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, 1.0, 3.0, N_),
+                               new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, 1.0, 4.0, N_),
                                N_+1),
                                NULL, &par[0], &par[3], &par[5]);
 
@@ -979,7 +1011,7 @@ std::pair<EyeModel::PupilParams, double> EyeModel::getRefractedCircle( const Sph
 
       PupilParams pupilParams = PupilParams(par(5,0), par(6,0), par(7,0));
 
-      return  {pupilParams, summary.final_cost/sqrt(10*N_+1)};
+      return  {pupilParams, summary.final_cost/sqrt(2*N_+1)};
 
 }
 
@@ -991,6 +1023,7 @@ int EyeModel::getNumResidualBlocks() const
     return problem.NumResidualBlocks();
 
 }
+
 std::vector<double> EyeModel::getCostPerPupil() const
 {
 
