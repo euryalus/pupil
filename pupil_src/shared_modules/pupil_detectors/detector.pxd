@@ -13,6 +13,11 @@ from libcpp.memory cimport shared_ptr
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libc.stdint cimport int32_t
+from libcpp.string cimport string
+from libcpp.map cimport map
+from libcpp cimport bool
+
+
 
 cdef extern from '<opencv2/core.hpp>':
 
@@ -99,6 +104,21 @@ cdef extern from 'common/types.h':
         int image_width
         int image_height
 
+    cdef struct Detector3DResultRefraction:
+        double initial_center[3]
+        double optimized_center[3]
+        double cost
+        int number_of_pupils
+        vector[vector[double]] par_history
+        vector[double] cost_history
+        vector[double] residual_histogram
+        double mean_residual
+        double std_residual
+        map[int,vector[vector[double]]] edge_map
+        vector[Circle] circles
+        vector[Ellipse] ellipses
+
+
     cdef struct ModelDebugProperties:
         vector[double] optimizedParameters
         vector[double] costPerPupil
@@ -126,9 +146,12 @@ cdef extern from 'common/types.h':
         int modelID
         double modelBirthTimestamp
         #-------- For visualization ----------------
+        Detector3DResultRefraction RefractionResult
         Edges3D edges
         Circle predictedCircle
         vector[ModelDebugProperties] models
+
+
 
     cdef struct Detector2DProperties:
         int intensity_range

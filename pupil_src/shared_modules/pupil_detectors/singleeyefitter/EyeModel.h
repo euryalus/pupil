@@ -96,6 +96,7 @@ class EyeModel {
         std::vector<double> getOptimizedParameters() const;
         std::vector<double> getCostPerPupil() const;
         int getNumResidualBlocks() const;
+        Detector3DResultRefraction getRefractionResult() const;
 
         int getModelID() const { return mModelID; };
         double getBirthTimestamp() const { return mBirthTimestamp; };
@@ -105,6 +106,8 @@ class EyeModel {
         // ----- Visualization END --------
 
     private:
+
+        Detector3DResultRefraction mResult;
 
         struct PupilParams {
 
@@ -136,6 +139,7 @@ class EyeModel {
         Sphere initialiseModel();
         double refineWithEdges( Sphere& sphere  );
         bool tryTransferNewObservations();
+
 
         ConfidenceValue calculateModelOberservationFit(const Circle&  unprojectedCircle, const Circle& initialisedCircle, double confidence) const;
         void updatePerformance( const ConfidenceValue& observation_fit,  double averageFramerate);
@@ -186,6 +190,7 @@ class EyeModel {
         double * const eye_params = static_cast<double * const>(malloc(5*sizeof(double)));
         std::vector<double> mOptimizedParams;
         void removePupilFromOptimization(std::vector<Pupil>::iterator iter);
+
 
         Sphere mSphere;                       // Thread sensitive
         Sphere mInitialSphere;                // Thread sensitive

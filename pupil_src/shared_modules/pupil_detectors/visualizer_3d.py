@@ -21,6 +21,7 @@ sys.path.append("/Users/Kai/Work/PupilLabs/git/refraction/src/modeling")
 sys.path.append("/cluster/Kai/refraction/src/modeling")
 import eye
 from collections import deque
+import pickle
 
 
 def get_perpendicular_vector(v):
@@ -247,7 +248,7 @@ class Eye_Visualizer(Visualizer):
 
         try:
             if result['models'][0]['optimized_parameters'][2] != self.toggle:
-
+                #pickle.dump(result['refraction_result'], open("/home/kd/Desktop/refraction_result.dat","wb"))
                 self.toggle = result['models'][0]['optimized_parameters'][2]
                 self.optimized_pupils_polar = [result['models'][0]['optimized_parameters'][i:i+3] for i in range(5, len(result['models'][0]['optimized_parameters']),3)]
                 self.optimized_pupils_cart = [np.array([np.sin(pupil[0]) * np.cos(pupil[1]), np.cos(pupil[0]), np.sin(pupil[0]) * np.sin(pupil[1])]) for pupil in self.optimized_pupils_polar]
@@ -260,8 +261,6 @@ class Eye_Visualizer(Visualizer):
 
             cost_vertices = list(zip(np.linspace(0, len(self.cost_history) / 200., len(self.cost_history)), np.clip(self.cost_history,0,3)))
             glutils.draw_polyline(cost_vertices, thickness=3, color=RGBA(1.0, 0, 0, 0.9))
-
-            histo = np.histogram(self.angles, bins=np.linspace(0, 1, 10))
 
             if not np.linalg.norm(result['circle'][1]) < 0.1:
                 normal = np.array(result['circle'][1])

@@ -211,10 +211,13 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
     result.modelBirthTimestamp = mActiveModelPtr->getBirthTimestamp();
     result.modelConfidence = mActiveModelPtr->getConfidence();
 
+
     if (mDebug) {
 
         result.models.reserve(mAlternativeModelsPtrs.size() + 1);
         ModelDebugProperties props;
+
+        result.RefractionResult = mActiveModelPtr->getRefractionResult();
         props.optimizedParameters = mActiveModelPtr->getOptimizedParameters();
         props.costPerPupil = mActiveModelPtr->getCostPerPupil();
         props.sphere = mActiveModelPtr->getSphere();
@@ -328,6 +331,7 @@ void EyeModelFitter::reset()
 {
     mNextModelID = 1;
     mAlternativeModelsPtrs.clear();
+    std::cout << "Hello1" << std::endl;
     mActiveModelPtr = EyeModelPtr( new EyeModel(mNextModelID , -1, mFocalLength, mCameraCenter ));
     mLastTimeModelAdded =  Clock::now();
     mCurrentSphere = Sphere::Null;
@@ -335,6 +339,7 @@ void EyeModelFitter::reset()
     //mLogger.setLogLevel( pupillabs::PyCppLogger::LogLevel::DEBUG);
     //mLogger.info("Reset models");
     //mLogger.error("Reset models");
+    std::cout << "Hello2" << std::endl;
 
 }
 

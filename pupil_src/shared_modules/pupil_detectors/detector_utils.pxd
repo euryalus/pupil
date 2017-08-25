@@ -13,6 +13,7 @@ See COPYING and COPYING.LESSER for license details.
 from detector cimport *
 from methods import  normalize
 from numpy.math cimport PI
+import numpy as np
 
 cdef extern from 'singleeyefitter/mathHelper.h' namespace 'singleeyefitter::math':
 
@@ -37,6 +38,44 @@ cdef inline convertTo2DPythonResult( Detector2DResult& result, object frame, obj
     py_result['norm_pos'] = norm_center
     py_result['timestamp'] = frame.timestamp
     py_result['method'] = '2d c++'
+
+    return py_result
+
+cdef inline convertTo3DPythonRefractionResult( Detector3DResultRefraction& result):
+
+    py_result = {}
+
+    py_result['initial_center'] = result.initial_center
+    py_result['optimized_center'] = result.optimized_center
+    py_result['cost'] = result.cost
+    py_result['number_of_pupils'] = result.number_of_pupils
+    py_result['par_history'] = np.array(result.par_history)
+    py_result['cost_history'] = np.array(result.cost_history)
+    py_result['residual_histogram'] = np.array(result.residual_histogram)
+    py_result['mean_residual'] = result.mean_residual
+    py_result['std_residual'] = result.std_residual
+    py_result['edges'] = {}
+    py_result['circles'] = {}
+    py_result['ellipses'] = {}
+
+    for i in range(py_result['number_of_pupils']):
+
+        py_result['edges'][i] = result.edge_map[i]
+
+        py_result['circles'][i] =  [result.circles[i].center[0],
+                                    result.circles[i].center[1],
+                                    result.circles[i].center[2],
+                                    result.circles[i].normal[0],
+                                    result.circles[i].normal[1],
+                                    result.circles[i].normal[2],
+                                    result.circles[i].radius]
+
+
+        py_result['ellipses'][i] = [result.ellipses[i].center[0],
+                                    result.ellipses[i].center[1],
+                                    result.ellipses[i].major_radius,
+                                    result.ellipses[i].minor_radius,
+                                    result.ellipses[i].angle]
 
     return py_result
 
@@ -105,6 +144,7 @@ cdef inline prepareForVisualization3D(  Detector3DResult& result ):
     py_visualizationResult['circle'] = getCircle(result);
     py_visualizationResult['cost'] = result.cost
     py_visualizationResult['predicted_circle'] = getPredictedCircle(result);
+    py_visualizationResult['refraction_result'] = convertTo3DPythonRefractionResult(result.RefractionResult)
 
     models = []
     for model in result.models:

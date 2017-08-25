@@ -10,6 +10,7 @@
 #include <vector>
 #include <memory>
 #include <chrono>
+#include <map>
 
 #include <opencv2/core.hpp>
 
@@ -69,7 +70,24 @@ namespace singleeyefitter {
 
     };
 
+    struct Detector3DResultRefraction {
+        double initial_center[3];
+        double optimized_center[3];
+        double cost;
+        int number_of_pupils;
+        std::vector<std::vector<double>> par_history;
+        std::vector<double> cost_history;
+        std::vector<double> residual_histogram;
+        double mean_residual;
+        double std_residual;
+        std::string message;
+        std::map<int,std::vector<std::vector<double>>> edge_map;
+        std::vector<Circle> circles;
+        std::vector<Ellipse> ellipses;
+    };
+
     struct ModelDebugProperties{
+
         std::vector<double> optimizedParameters;
         std::vector<double> costPerPupil;
         Sphere<double> sphere;
@@ -100,6 +118,8 @@ namespace singleeyefitter {
         Edges3D edges;
         Circle predictedCircle = Circle::Null;
         std::vector<ModelDebugProperties> models;
+        Detector3DResultRefraction RefractionResult;
+
     };
 
     // use a struct for all properties and pass it to detect method every time we call it.
