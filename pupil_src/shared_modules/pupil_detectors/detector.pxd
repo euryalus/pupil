@@ -9,7 +9,7 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 '''
 
-from libcpp.memory cimport shared_ptr
+from libcpp.memory cimport shared_ptr, make_shared
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libc.stdint cimport int32_t
@@ -43,6 +43,8 @@ cdef extern from '<opencv2/core.hpp>' namespace 'cv':
 
   cdef cppclass Point_[T]:
     Point_() except +
+    T x
+    T y
 
 cdef extern from '<opencv2/core.hpp>' namespace 'cv':
 
@@ -206,6 +208,13 @@ cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
         EyeModelFitter(double focalLength )
 
         Detector3DResult updateAndDetect( shared_ptr[Detector2DResult]& results, const Detector3DProperties& prop, bint fillDebugResult )
+
+        #funtions for controlled fitting
+        int relayObservation( shared_ptr[Detector2DResult]& results, int prepare_toggle)
+        Detector3DResultRefraction optimize_current_model()
+        void setSphereCenter(vector[double])
+        Circle predictSingleObservation(shared_ptr[Detector2DResult]& results)
+        void setFitHyperParameters(int)
 
         void reset()
         double getFocalLength()

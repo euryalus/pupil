@@ -39,6 +39,14 @@ namespace singleeyefitter {
             Detector3DResult updateAndDetect( std::shared_ptr<Detector2DResult>& observation,const Detector3DProperties& props, bool debug = false );
 
 
+            //CONTROLLED FITTING
+            int relayObservation(std::shared_ptr<Detector2DResult>&, int prepare_toggle);
+            Detector3DResultRefraction optimize_current_model();
+            Circle predictSingleObservation(std::shared_ptr<Detector2DResult>&);
+            void setSphereCenter(std::vector<double>);
+            void setFitHyperParameters(int);
+
+
         private:
 
             const Vector3 mCameraCenter;

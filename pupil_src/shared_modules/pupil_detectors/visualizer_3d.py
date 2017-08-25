@@ -248,7 +248,7 @@ class Eye_Visualizer(Visualizer):
 
         try:
             if result['models'][0]['optimized_parameters'][2] != self.toggle:
-                #pickle.dump(result['refraction_result'], open("/home/kd/Desktop/refraction_result.dat","wb"))
+                pickle.dump(result['refraction_result'], open("/home/kd/Desktop/refraction_result.dat","wb"))
                 self.toggle = result['models'][0]['optimized_parameters'][2]
                 self.optimized_pupils_polar = [result['models'][0]['optimized_parameters'][i:i+3] for i in range(5, len(result['models'][0]['optimized_parameters']),3)]
                 self.optimized_pupils_cart = [np.array([np.sin(pupil[0]) * np.cos(pupil[1]), np.cos(pupil[0]), np.sin(pupil[0]) * np.sin(pupil[1])]) for pupil in self.optimized_pupils_polar]

@@ -65,6 +65,91 @@ EyeModelFitter::EyeModelFitter(double focalLength, Vector3 cameraCenter) :
 }
 
 
+///////FUNCTIONS FOR CONTROLLED FITTING
+
+Circle EyeModelFitter::predictSingleObservation(std::shared_ptr<Detector2DResult>& observation2D){
+
+    int image_height = observation2D->image_height;
+    int image_width = observation2D->image_width;
+    int image_height_half = image_height / 2.0;
+    int image_width_half = image_width / 2.0;
+
+    Ellipse& ellipse = observation2D->ellipse;
+    ellipse.center[0] -= image_width_half;
+    ellipse.center[1] = image_height_half - ellipse.center[1];
+    ellipse.angle = -ellipse.angle; //take y axis flip into account
+
+    // Observation edge data are relative to their ROI
+    cv::Rect roi = observation2D->current_roi;
+
+    // put the edges int or coordinate system
+    // edges are needed for every optimisation step
+    for (cv::Point& p : observation2D->final_edges) {
+        p += roi.tl();
+        p.x -= image_width_half;
+        p.y  = image_height_half - p.y;
+    }
+
+    auto observation3DPtr = std::make_shared<const Observation>(observation2D, mFocalLength);
+    Circle circle = mActiveModelPtr->predictSingleObservation(observation3DPtr);
+    return circle;
+};
+
+void EyeModelFitter::setSphereCenter(std::vector<double> center){
+
+    mActiveModelPtr->setSphereCenter(center);
+
+};
+
+int EyeModelFitter::relayObservation(std::shared_ptr<Detector2DResult>& observation2D, int prepare_toggle){
+
+    if (prepare_toggle){
+
+        int image_height = observation2D->image_height;
+        int image_width = observation2D->image_width;
+        int image_height_half = image_height / 2.0;
+        int image_width_half = image_width / 2.0;
+
+        Ellipse& ellipse = observation2D->ellipse;
+        ellipse.center[0] -= image_width_half;
+        ellipse.center[1] = image_height_half - ellipse.center[1];
+        ellipse.angle = -ellipse.angle; //take y axis flip into account
+
+        // Observation edge data are relative to their ROI
+        cv::Rect roi = observation2D->current_roi;
+
+        // put the edges int or coordinate system
+        // edges are needed for every optimisation step
+        for (cv::Point& p : observation2D->final_edges) {
+            p += roi.tl();
+            p.x -= image_width_half;
+            p.y  = image_height_half - p.y;
+        }
+
+    }
+
+    auto observation3DPtr = std::make_shared<const Observation>(observation2D, mFocalLength);
+    int N = mActiveModelPtr->addObservation(observation3DPtr);
+    return N;
+}
+
+Detector3DResultRefraction EyeModelFitter::optimize_current_model(){
+
+         Detector3DResultRefraction result;
+         result = mActiveModelPtr->run_optimization();
+         return result;
+
+}
+
+void EyeModelFitter::setFitHyperParameters(int EdgeNumber){
+
+    mActiveModelPtr->setFitHyperParameters(EdgeNumber);
+
+}
+
+//////////////////////////////////
+
+
 Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResult>& observation2D , const Detector3DProperties& props , bool debug)
 {
 

@@ -140,7 +140,9 @@ EyeModel::EyeModel( int modelId, double timestamp,  double focalLength, Vector3 
     mEdgeNumber(10),
     mEyeballRadius(12.0),
     mCorneaRadius(7.5),
-    mIrisRadius(6.0)
+    mIrisRadius(6.0),
+    mInitialCorneaRadius(7.5),
+    mInitialIrisRadius(6.0)
     {}
 
 EyeModel::~EyeModel(){
@@ -148,8 +150,73 @@ EyeModel::~EyeModel(){
     //wait for thread to finish before we dealloc
     if( mWorker.joinable() )
         mWorker.join();
+}
+
+// CODE FOR CONTROLLED FITTING ((SEMI)INDEPENDENT OF EYE FITTER)
+
+int EyeModel::addObservation(const ObservationPtr newObservationPtr){
+
+    if (newObservationPtr->getObservation2D()->confidence>0.97){
+        mSupportingPupilsToAdd.emplace_back(newObservationPtr);
+        tryTransferNewObservations();
+    }
+
+    return static_cast<int>(mSupportingPupils.size());
+}
+
+
+Detector3DResultRefraction EyeModel::run_optimization(){
+
+        auto sphere  = initialiseModel();
+        auto sphere2 = sphere;
+        mInitialSphere = sphere2;
+        double fit = refineWithEdges(sphere);
+        mSphere = sphere;
+        mSolverFit = fit;
+
+        mResult.initial_center[0] = mInitialSphere.center[0];
+        mResult.initial_center[1] = mInitialSphere.center[1];
+        mResult.initial_center[2] = mInitialSphere.center[2];
+        mResult.optimized_center[0] = mSphere.center[0];
+        mResult.optimized_center[1] = mSphere.center[1];
+        mResult.optimized_center[2] = mSphere.center[2];
+
+        return mResult;
 
 }
+
+
+Circle EyeModel::predictSingleObservation(const ObservationPtr newObservationPtr){
+
+        Circle circle_;
+        Circle circle;
+        const Circle& unprojectedCircle = selectUnprojectedCircle( mSphere, newObservationPtr->getUnprojectedCirclePair() );
+        circle = getInitialCircle(mSphere, unprojectedCircle);
+        std::pair<PupilParams, double> refraction_result = getRefractedCircle(mSphere, circle, newObservationPtr);
+        circle_ = circleFromParams(mSphere, refraction_result.first);
+        return circle_;
+
+}
+
+
+void EyeModel::setSphereCenter(std::vector<double> center){
+
+    mSphere.center[0] = center[0];
+    mSphere.center[1] = center[1];
+    mSphere.center[2] = center[2];
+    mSphere.radius = sqrt(pow(mEyeballRadius,2)-pow(mIrisRadius,2));
+
+}
+
+
+void EyeModel::setFitHyperParameters(int EdgeNumber){
+
+    mEdgeNumber = EdgeNumber;
+
+}
+
+///////////////////////////////////
+
 
 std::pair<Circle, double> EyeModel::presentObservation(const ObservationPtr newObservationPtr, double averageFramerate )
 {
@@ -210,12 +277,12 @@ std::pair<Circle, double> EyeModel::presentObservation(const ObservationPtr newO
             (bin_number<7 &&
             ((mSupportingPupilSize>60 && (confidence2D > 0.99 && isSpatialRelevant(unprojectedCircle))) ||
             ((mSupportingPupilSize>30 && mSupportingPupilSize<=60) && (confidence2D > 0.97 && isSpatialRelevant(unprojectedCircle))) ||
-            (mSupportingPupilSize<=30 && (confidence2D > 0.95 && isSpatialRelevant(unprojectedCircle))))) ||
+            (mSupportingPupilSize<=30 && (confidence2D > 0.96 && isSpatialRelevant(unprojectedCircle))))) ||
 
             (bin_number>=7 &&
-            ((mSupportingPupilSize>60 && (confidence2D > 0.8 && isSpatialRelevant(unprojectedCircle))) ||
-            ((mSupportingPupilSize>30 && mSupportingPupilSize<=60) && (confidence2D > 0.7 && isSpatialRelevant(unprojectedCircle))) ||
-            (mSupportingPupilSize<=30 && (confidence2D > 0.6 && isSpatialRelevant(unprojectedCircle)))))
+            ((mSupportingPupilSize>60 && (confidence2D > 0.99 && isSpatialRelevant(unprojectedCircle))) ||
+            ((mSupportingPupilSize>30 && mSupportingPupilSize<=60) && (confidence2D > 0.96 && isSpatialRelevant(unprojectedCircle))) ||
+            (mSupportingPupilSize<=30 && (confidence2D > 0.93 && isSpatialRelevant(unprojectedCircle)))))
 
             ){
             shouldAddObservation = true;
@@ -498,8 +565,8 @@ EyeModel::Sphere EyeModel::initialiseModel()
     eye_params[0] = sphere.center[0];
     eye_params[1] = sphere.center[1];
     eye_params[2] = sphere.center[2];
-    eye_params[3] = mCorneaRadius;
-    eye_params[4] = mIrisRadius;
+    eye_params[3] = mInitialCorneaRadius;
+    eye_params[4] = mInitialIrisRadius;
 
     return sphere;
 
@@ -517,7 +584,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     std::map<int, std::vector<std::vector<double>>> edge_map;
     int i = 0;
     std::vector<double*> all_par_blocks;
-    ceres::CauchyLoss * loss_function = new ceres::CauchyLoss(0.01);
+    ceres::ArctanLoss * loss_function = new ceres::ArctanLoss(0.001);
 
     for (auto& pupil: mSupportingPupils){
 
@@ -534,11 +601,11 @@ double EyeModel::refineWithEdges(Sphere& sphere)
                 N_ = mEdgeNumber < pupilInliers.size() ? mEdgeNumber : pupilInliers.size();
             }
 
-            pupil.mResidualBlockId = problem.AddResidualBlock(
-            new ceres::AutoDiffCostFunction<RefractionResidualFunction<double>, ceres::DYNAMIC, 3, 2, 3>(
-            new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, 1.0, 2.0, N_),
-            N_+1),
-            loss_function, &eye_params[0], &eye_params[3], &(pupil.optimizedParams[0]));
+            ceres::CostFunction * current_cost = new ceres::AutoDiffCostFunction<RefractionResidualFunction<double>, ceres::DYNAMIC, 3, 2, 3>(
+            new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, 1.0, 3.0, N_),
+            N_+1);
+
+            pupil.mResidualBlockId = problem.AddResidualBlock(current_cost, NULL, &eye_params[0], &eye_params[3], &(pupil.optimizedParams[0]));
 
             mResult.circles.push_back(selectUnprojectedCircle(mSphere, pupil.mObservationPtr->getUnprojectedCirclePair()));
             mResult.ellipses.push_back(ellipse);
@@ -565,12 +632,20 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     //SAVE ALL RESIDUALBLOCK-IDS IN A VECTOR
     std::vector<ceres::ResidualBlockId> residualblock_vector;
     problem.GetResidualBlocks(&residualblock_vector);
-    std::cout << residualblock_vector.size() << " residual blocks" << std::endl;
-    std::cout << mSupportingPupilSize << " pupils in list" << std::endl;
+//    std::cout << residualblock_vector.size() << " residual blocks" << std::endl;
+//    std::cout << mSupportingPupilSize << " pupils in list" << std::endl;
 
     // SETTING BOUNDS - Z-POSITION OF SPHERE
     problem.SetParameterLowerBound(&eye_params[0], 2, 15.0);
-    problem.SetParameterUpperBound(&eye_params[0], 2, 50.0);
+    problem.SetParameterUpperBound(&eye_params[0], 2, 60.0);
+
+//    // SETTING BOUNDS - Z-POSITION OF SPHERE
+//    problem.SetParameterLowerBound(&eye_params[3], 0, 5.5);
+//    problem.SetParameterUpperBound(&eye_params[3], 0, 6.5);
+//
+//    // SETTING BOUNDS - Z-POSITION OF SPHERE
+//    problem.SetParameterLowerBound(&eye_params[3], 1, 7.3);
+//    problem.SetParameterUpperBound(&eye_params[3], 1, 8.2);
 
     // SETTING BOUNDS - PUPIL RADII
     std::vector<double*> par_blocks;
@@ -633,12 +708,15 @@ double EyeModel::refineWithEdges(Sphere& sphere)
         problem.GetParameterBlocksForResidualBlock(rb, &par_blocks);
         problem.SetParameterBlockVariable(par_blocks[2]);
     }
-    ceres::Solve(options, &problem, &summary);
 
     // RUNNING SOLVER ->  FINAL TUNING
-    options.max_num_iterations = 30;
+    options.max_num_iterations = 100;
     problem.SetParameterBlockVariable(&eye_params[0]);
     ceres::Solve(options, &problem, &summary);
+
+    //SETTING EYE GEOMETRY VARIABLE
+//    problem.SetParameterBlockVariable(&eye_params[3]);
+//    ceres::Solve(options, &problem, &summary);
 
     // UPDATING MODEL PARAMETERS FROM OPTIMIZATION RESULT
     sphere.center[0] = eye_params[0];

@@ -83,6 +83,13 @@ class EyeModel {
         // DOOR TO THE OUTER WORLD
         std::pair<Circle, double> presentObservation(const ObservationPtr observation, double averageFramerate  );
 
+        // FOR CONTROLLED FITTING
+        int addObservation(const ObservationPtr);
+        Detector3DResultRefraction run_optimization();
+        Circle predictSingleObservation(const ObservationPtr);
+        void setSphereCenter(std::vector<double>);
+        void setFitHyperParameters(int);
+
         // GETTER
         Sphere getSphere() const;
         Sphere getInitialSphere() const;
@@ -123,6 +130,12 @@ class EyeModel {
             PupilParams mParams;
             const ObservationPtr mObservationPtr;
             //Pupil( const ObservationPtr observationPtr ) : mObservationPtr( observationPtr ){};
+            Pupil( const ObservationPtr observationPtr) : mObservationPtr( observationPtr ){
+                mParams = PupilParams(0,0,0);
+                optimizedParams[0] = 0;
+                optimizedParams[1] = 0;
+                optimizedParams[2] = 0;
+            };
             Pupil( const ObservationPtr observationPtr, PupilParams params ) : mObservationPtr( observationPtr ){
                 mParams = PupilParams(params.theta, params.psi, params.radius);
                 optimizedParams[0] = params.theta;
@@ -184,6 +197,8 @@ class EyeModel {
         double mEyeballRadius;
         double mCorneaRadius;
         double mIrisRadius;
+        double mInitialCorneaRadius;
+        double mInitialIrisRadius;
 
         ceres::Problem problem;
         std::vector<double> mCostPerBlock;  // Here we store after each optimization the current cost per residual block

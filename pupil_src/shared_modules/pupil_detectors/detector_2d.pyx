@@ -74,13 +74,11 @@ cdef class Detector_2D:
             self.detectProperties["final_perimeter_ratio_range_max"] = 1.0
             self.detectProperties["ellipse_true_support_min_dist"] = 3.0
 
+    def set_settings(self, settings):
+        self.detectProperties = settings
+
     def get_settings(self):
         return self.detectProperties
-
-    def on_resolution_change(self, old_size, new_size):
-        self.detectProperties["pupil_size_max"] *= new_size[0] / old_size[0]
-        self.detectProperties["pupil_size_min"] *= new_size[0] / old_size[0]
-
 
     def __dealloc__(self):
       del self.thisptr
