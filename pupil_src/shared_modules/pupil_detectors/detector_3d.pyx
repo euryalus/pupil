@@ -20,6 +20,7 @@ import glfw
 from gl_utils import  adjust_gl_view, clear_gl_screen,basic_gl_setup,make_coord_system_norm_based,make_coord_system_pixel_based
 from pyglui.cygl.utils import draw_gl_texture
 import math
+import pickle
 
 from visualizer_3d import Eye_Visualizer
 from collections import namedtuple
@@ -83,7 +84,6 @@ cdef class Detector_3D:
             self.detectProperties2D["final_perimeter_ratio_range_min"] = 0.6
             self.detectProperties2D["final_perimeter_ratio_range_max"] = 1.2
             self.detectProperties2D["ellipse_true_support_min_dist"] = 2.5
-
 
         if not self.detectProperties3D:
             self.detectProperties3D["model_sensitivity"] = 0.997
@@ -177,12 +177,19 @@ cdef class Detector_3D:
 
         ######### 3D Model Part ############
         debugDetector =  self.debugVisualizer3D.window
-        cdef Detector3DResult cpp3DResult  = self.detector3DPtr.updateAndDetect( cpp2DResultPtr , self.detectProperties3D, debugDetector)
+        cdef Detector3DResult cpp3DResult  = self.detector3DPtr.updateAndDetect( cpp2DResultPtr , self.detectProperties3D, True) #debugDetector)
 
-        pyResult = convertTo3DPythonResult(cpp3DResult , frame )
+        pyResult = convertTo3DPythonResult(cpp3DResult,frame)
+
+        #FOR HEADLESS EXPERIMENTS
+        #try:
+        #    self.pyResult3D = prepareForVisualization3D(cpp3DResult)
+        #    self.debugVisualizer3D.write_result(self.pyResult3D)
+        #except:
+        #    pass
 
         if debugDetector:
-            self.pyResult3D = prepareForVisualization3D(cpp3DResult)
+           self.pyResult3D = prepareForVisualization3D(cpp3DResult)
 
         return pyResult
 
@@ -420,4 +427,3 @@ cdef class Detector_3D:
     def visualize(self):
         if self.debugVisualizer3D.window:
             self.debugVisualizer3D.update_window( self.gPool, self.pyResult3D  )
-
