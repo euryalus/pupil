@@ -174,6 +174,7 @@ class EyeModel {
 
         mutable std::mutex mModelMutex;
         std::mutex mPupilMutex;
+        mutable std::mutex mRefractionMutex;
         std::thread mWorker;
         Clock::time_point mLastModelRefinementTime;
 
@@ -200,7 +201,6 @@ class EyeModel {
         double mInitialCorneaRadius;
         double mInitialIrisRadius;
 
-        ceres::Problem problem;
         std::vector<double> mCostPerBlock;  // Here we store after each optimization the current cost per residual block
         double * const eye_params = static_cast<double * const>(malloc(5*sizeof(double)));
         std::vector<double> mOptimizedParams;

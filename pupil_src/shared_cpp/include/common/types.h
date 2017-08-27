@@ -71,15 +71,16 @@ namespace singleeyefitter {
     };
 
     struct Detector3DResultRefraction {
+
         double initial_center[3];
         double optimized_center[3];
         double cost;
         int number_of_pupils;
         std::vector<std::vector<double>> par_history;
         std::vector<double> cost_history;
-        std::vector<double> residual_histogram;
-        double mean_residual;
-        double std_residual;
+//        std::vector<double> residual_histogram;
+//        double mean_residual;
+//        double std_residual;
         std::string message;
         std::map<int,std::vector<std::vector<double>>> edge_map;
         std::vector<Circle> circles;

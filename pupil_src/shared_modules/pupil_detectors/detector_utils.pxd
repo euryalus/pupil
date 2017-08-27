@@ -51,9 +51,11 @@ cdef inline convertTo3DPythonRefractionResult( Detector3DResultRefraction& resul
     py_result['number_of_pupils'] = result.number_of_pupils
     py_result['par_history'] = np.array(result.par_history)
     py_result['cost_history'] = np.array(result.cost_history)
-    py_result['residual_histogram'] = np.array(result.residual_histogram)
-    py_result['mean_residual'] = result.mean_residual
-    py_result['std_residual'] = result.std_residual
+
+    #py_result['residual_histogram'] = np.array(result.residual_histogram)
+    #py_result['mean_residual'] = result.mean_residual
+    #py_result['std_residual'] = result.std_residual
+
     py_result['edges'] = {}
     py_result['circles'] = {}
     py_result['ellipses'] = {}
@@ -69,7 +71,6 @@ cdef inline convertTo3DPythonRefractionResult( Detector3DResultRefraction& resul
                                     result.circles[i].normal[1],
                                     result.circles[i].normal[2],
                                     result.circles[i].radius]
-
 
         py_result['ellipses'][i] = [result.ellipses[i].center[0],
                                     result.ellipses[i].center[1],

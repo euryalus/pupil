@@ -177,8 +177,6 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
     ellipse.center[1] = image_height_half - ellipse.center[1];
     ellipse.angle = -ellipse.angle; //take y axis flip into account
 
-
-
     // Observation edge data are realtive to their ROI
     cv::Rect roi = observation2D->current_roi;
 
@@ -290,12 +288,14 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
         result.ellipse = Ellipse::Null;
    }
 
+
     // contains the logic for building alternative models if the current one is bad
     //checkModels(modelSensitivity,observation2D->timestamp );
+
+
     result.modelID = mActiveModelPtr->getModelID();
     result.modelBirthTimestamp = mActiveModelPtr->getBirthTimestamp();
     result.modelConfidence = mActiveModelPtr->getConfidence();
-
 
     if (mDebug) {
 
@@ -305,6 +305,7 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
         result.RefractionResult = mActiveModelPtr->getRefractionResult();
         props.optimizedParameters = mActiveModelPtr->getOptimizedParameters();
         props.costPerPupil = mActiveModelPtr->getCostPerPupil();
+
         props.sphere = mActiveModelPtr->getSphere();
         props.initialSphere = mActiveModelPtr->getInitialSphere();
         props.binPositions = mActiveModelPtr->getBinPositions();
@@ -338,8 +339,9 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
 
     return result;
 
-}
 
+
+}
 
 void EyeModelFitter::checkModels( float sensitivity,double frame_timestamp )
 {

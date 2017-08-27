@@ -113,9 +113,9 @@ cdef extern from 'common/types.h':
         int number_of_pupils
         vector[vector[double]] par_history
         vector[double] cost_history
-        vector[double] residual_histogram
-        double mean_residual
-        double std_residual
+        #vector[double] residual_histogram
+        #double mean_residual
+        #double std_residual
         map[int,vector[vector[double]]] edge_map
         vector[Circle] circles
         vector[Ellipse] ellipses
