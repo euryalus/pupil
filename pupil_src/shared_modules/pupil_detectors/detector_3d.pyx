@@ -182,8 +182,8 @@ cdef class Detector_3D:
         pyResult = convertTo3DPythonResult(cpp3DResult,frame)
 
         #FOR HEADLESS EXPERIMENTS
-        self.pyResult3D = prepareForVisualization3D(cpp3DResult)
-        self.debugVisualizer3D.write_result(self.pyResult3D)
+        #self.pyResult3D = prepareForVisualization3D(cpp3DResult)
+        #self.debugVisualizer3D.write_result(self.pyResult3D)
 
         if debugDetector:
            self.pyResult3D = prepareForVisualization3D(cpp3DResult)
