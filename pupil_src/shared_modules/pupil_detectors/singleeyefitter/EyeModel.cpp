@@ -631,7 +631,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
             }
 
             ceres::CostFunction * current_cost = new ceres::AutoDiffCostFunction<RefractionResidualFunction<double>, ceres::DYNAMIC, 3, 2, 3>(
-            new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, 1.0, 4.0, N_),
+            new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, 1.0, 0.0, N_),
             N_+1);
 
             pupil.mResidualBlockId = problem.AddResidualBlock(current_cost, loss_function, &eye_params[0], &eye_params[3], &(pupil.optimizedParams[0]));

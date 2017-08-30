@@ -29,7 +29,7 @@ from detector cimport *
 from detector_utils cimport *
 
 from cython.operator cimport dereference as deref
-
+from libcpp.string cimport string
 
 cdef class Detector_3D:
 
@@ -41,6 +41,7 @@ cdef class Detector_3D:
     cdef object gPool
     cdef object debugVisualizer3D
     cdef object pyResult3D
+    cdef string refraction_directory
 
     def __cinit__(self, g_pool = None, settings = None):
         self.detector2DPtr = new Detector2D()
@@ -87,6 +88,13 @@ cdef class Detector_3D:
 
         if not self.detectProperties3D:
             self.detectProperties3D["model_sensitivity"] = 0.997
+
+        self.refraction_directory = "/home/kd/Desktop/"
+
+    def set_refraction_directory(self, dir_):
+        self.refraction_directory = dir_.encode()
+    def get_refraction_directory(self):
+        return self.refraction_directory
 
     def get_settings(self):
         return {'2D_Settings': self.detectProperties2D , '3D_Settings' : self.detectProperties3D }
@@ -182,8 +190,8 @@ cdef class Detector_3D:
         pyResult = convertTo3DPythonResult(cpp3DResult,frame)
 
         #FOR HEADLESS EXPERIMENTS
-        #self.pyResult3D = prepareForVisualization3D(cpp3DResult)
-        #self.debugVisualizer3D.write_result(self.pyResult3D)
+        self.pyResult3D = prepareForVisualization3D(cpp3DResult)
+        self.debugVisualizer3D.write_result(self.pyResult3D, self.refraction_directory)
 
         if debugDetector:
            self.pyResult3D = prepareForVisualization3D(cpp3DResult)

@@ -205,14 +205,17 @@ class Eye_Visualizer(Visualizer):
         glutils.draw_polyline( [ (0,0,0), (0,0,4) ] ,color=RGBA(0,0,0), line_type = GL_LINES) #normal
         glPopMatrix()
 
-    def write_result(self, result):
+    def write_result(self, result, output_dir="/home/kd/Desktop/refraction_results"):
+        output_dir = output_dir.decode("utf-8")
         try:
-            if result['models'][0]['optimized_parameters'][2] != self.toggle:
-                self.optimization_number += 1
-                pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat" % self.optimization_number, "wb"))
-                self.toggle = result['models'][0]['optimized_parameters'][2]
+            if result['models'][0]['optimized_parameters'][2]:
+                if result['models'][0]['optimized_parameters'][2] != self.toggle:
+                    self.optimization_number += 1
+                    #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat" % self.optimization_number, "wb"))
+                    pickle.dump(result['refraction_result'], open(output_dir + "/" + "refraction_result_%i_.dat" % self.optimization_number, "wb"))
+                    self.toggle = result['models'][0]['optimized_parameters'][2]
         except:
-            pass
+             pass
 
     def draw_residuals(self, result):
 

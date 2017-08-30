@@ -474,7 +474,8 @@ def eye(timebase, is_alive_flag, ipc_pub_url, ipc_sub_url, ipc_push_url,
                     frame_publish_format = 'jpeg'
                 elif subject.startswith('start_eye_capture') and notification['target'] == g_pool.process:
                     replace_source(notification['name'],notification['args'])
-
+                elif subject.startswith('set_refraction_directory'):
+                    g_pool.pupil_detector.set_refraction_directory(notification['args']['output_dir'])
                 g_pool.capture.on_notify(notification)
 
             # Get an image from the grabber
