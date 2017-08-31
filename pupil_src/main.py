@@ -150,7 +150,11 @@ def launcher():
 
     ## IPC
     timebase = Value(c_double,0)
-    eyes_are_alive = Value(c_bool,0),Value(c_bool,0)
+    eyes_are_alive = []
+    for _ in range(20):
+        eyes_are_alive.append(Value(c_bool,0))
+    eyes_are_alive = tuple(eyes_are_alive)
+
 
     zmq_ctx = zmq.Context()
 

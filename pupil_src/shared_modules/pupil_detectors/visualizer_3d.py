@@ -7,7 +7,6 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 '''
-
 from visualizer import Visualizer
 from OpenGL.GL import *
 from pyglui.cygl import utils as glutils
@@ -16,10 +15,10 @@ from gl_utils.trackball import Trackball
 import numpy as np
 import math
 from collections import deque
-import sys
-sys.path.append("/Users/Kai/Work/PupilLabs/git/refraction/src/modeling")
-sys.path.append("/cluster/Kai/refraction/src/modeling")
-import eye
+#import sys
+#sys.path.append("/Users/Kai/Work/PupilLabs/git/refraction/src/modeling")
+#sys.path.append("/cluster/Kai/refraction/src/modeling")
+import pupil_detectors.singleeyefitter.eye_geometry as eye_geometry
 
 from collections import deque
 import pickle
@@ -66,7 +65,7 @@ class Eye_Visualizer(Visualizer):
         # self.residuals_means = deque(np.zeros(50), 50)
         # self.residuals_stds = deque(np.zeros(50), 50)
 
-        self.eye = eye.Eye()
+        self.eye = eye_geometry.Eye()
         self.toggle = -1
         self.cost_history = deque([], maxlen=200)
         self.optimization_number = 0
@@ -206,16 +205,17 @@ class Eye_Visualizer(Visualizer):
         glPopMatrix()
 
     def write_result(self, result, output_dir="/home/kd/Desktop/refraction_results"):
-        output_dir = output_dir.decode("utf-8")
-        try:
-            if result['models'][0]['optimized_parameters'][2]:
-                if result['models'][0]['optimized_parameters'][2] != self.toggle:
-                    self.optimization_number += 1
-                    #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat" % self.optimization_number, "wb"))
-                    pickle.dump(result['refraction_result'], open(output_dir + "/" + "refraction_result_%i_.dat" % self.optimization_number, "wb"))
-                    self.toggle = result['models'][0]['optimized_parameters'][2]
-        except:
-             pass
+        pass
+        # output_dir = output_dir.decode("utf-8")
+        # try:
+        #     if result['models'][0]['optimized_parameters'][2]:
+        #         if result['models'][0]['optimized_parameters'][2] != self.toggle:
+        #             self.optimization_number += 1
+        #             #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat" % self.optimization_number, "wb"))
+        #             pickle.dump(result['refraction_result'], open(output_dir + "/" + "refraction_result_%i_.dat" % self.optimization_number, "wb"))
+        #             self.toggle = result['models'][0]['optimized_parameters'][2]
+        # except:
+        #      pass
 
     def draw_residuals(self, result):
 
@@ -261,7 +261,7 @@ class Eye_Visualizer(Visualizer):
             if result['models'][0]['optimized_parameters'][2] != self.toggle:
                 #pickle.dump(result['refraction_result'], open("/home/kd/Desktop/refraction_result.dat","wb"))
                 self.optimization_number += 1
-                pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat"%self.optimization_number, "wb"))
+                #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat"%self.optimization_number, "wb"))
                 self.toggle = result['models'][0]['optimized_parameters'][2]
                 self.optimized_pupils_polar = [result['models'][0]['optimized_parameters'][i:i+3] for i in range(0, len(result['models'][0]['optimized_parameters']), 3)]
                 self.optimized_pupils_cart = [np.array([np.sin(pupil[0]) * np.cos(pupil[1]), np.cos(pupil[0]), np.sin(pupil[0]) * np.sin(pupil[1])]) for pupil in self.optimized_pupils_polar]
@@ -270,7 +270,7 @@ class Eye_Visualizer(Visualizer):
                 self.angles = [np.arccos(np.dot(pupil, self.eye_camera_axis))/(np.pi/2.0) for pupil in self.optimized_pupils_cart]
                 self.vertices = list(zip(self.angles, np.clip(np.log10(np.array(result['models'][0]['cost_per_pupil']))+7, 0, 3)))
 
-            glutils.draw_points(self.vertices, size=30, color=RGBA(255 / 255., 173 / 255., 51 / 255., 0.8))
+            glutils.draw_points(self.vertices, size=10, color=RGBA(255 / 255., 173 / 255., 51 / 255., 0.8))
 
             cost_vertices = list(zip(np.linspace(0, len(self.cost_history) / 200., len(self.cost_history)), np.clip(self.cost_history,0,3)))
             glutils.draw_polyline(cost_vertices, thickness=3, color=RGBA(1.0, 0, 0, 0.9))
@@ -279,10 +279,13 @@ class Eye_Visualizer(Visualizer):
                 normal = np.array(result['circle'][1])
                 normal /= np.linalg.norm(normal)
                 angle = np.arccos(np.dot(normal, self.eye_camera_axis))/(np.pi/2.0)
-                cost = max(0,min(np.log10(result['cost'])+7,3))
+                cost = max(0,min(np.log10(result['cost'])+7, 3))
                 glutils.draw_points([[angle, cost]], size=15, color=RGBA(1.0, 1.0, 1.0, 0.9))
+
         except:
-             pass
+            pass
+
+
 
         # cost_vertices = list(zip(np.linspace(0,len(self.cost_history)/200.,len(self.cost_history)), self.cost_history))
         # glutils.draw_polyline(cost_vertices, thickness=3, color=RGBA(1.0, 0, 0, 0.9))

@@ -9,8 +9,8 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 '''
-
-# cython: profile=False
+#test
+#cython: profile=False
 import cv2
 import numpy as np
 from coarse_pupil cimport center_surround

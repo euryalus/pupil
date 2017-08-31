@@ -291,6 +291,7 @@ class RefractionResidualFunction
                                               for (int i=0; i<edges.size(); i++){
                                                 v.push_back(i);
                                               }
+
                                               std::random_device rd;
                                               std::mt19937 g(rd());
                                               std::shuffle(v.begin(), v.end(), g);
@@ -348,9 +349,6 @@ class RefractionResidualFunction
         double lambda_2;
         std::vector<int> v;
         const int N;
-
-
-
 
 };
 
