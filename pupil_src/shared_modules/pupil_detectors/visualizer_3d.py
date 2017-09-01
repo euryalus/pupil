@@ -205,17 +205,16 @@ class Eye_Visualizer(Visualizer):
         glPopMatrix()
 
     def write_result(self, result, output_dir="/home/kd/Desktop/refraction_results"):
-        pass
-        # output_dir = output_dir.decode("utf-8")
-        # try:
-        #     if result['models'][0]['optimized_parameters'][2]:
-        #         if result['models'][0]['optimized_parameters'][2] != self.toggle:
-        #             self.optimization_number += 1
-        #             #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat" % self.optimization_number, "wb"))
-        #             pickle.dump(result['refraction_result'], open(output_dir + "/" + "refraction_result_%i_.dat" % self.optimization_number, "wb"))
-        #             self.toggle = result['models'][0]['optimized_parameters'][2]
-        # except:
-        #      pass
+        output_dir = output_dir.decode("utf-8")
+        try:
+            if result['models'][0]['optimized_parameters'][2]:
+                if result['models'][0]['optimized_parameters'][2] != self.toggle:
+                    self.optimization_number += 1
+                    #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat" % self.optimization_number, "wb"))
+                    pickle.dump(result['refraction_result'], open(output_dir + "/" + "refraction_result_%i_.dat" % self.optimization_number, "wb"))
+                    self.toggle = result['models'][0]['optimized_parameters'][2]
+        except:
+             pass
 
     def draw_residuals(self, result):
 

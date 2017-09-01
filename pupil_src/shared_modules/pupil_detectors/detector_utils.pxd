@@ -50,8 +50,8 @@ cdef inline convertTo3DPythonRefractionResult( Detector3DResultRefraction& resul
     py_result['cost'] = result.cost
     py_result['number_of_pupils'] = result.number_of_pupils
     py_result['par_history'] = np.array(result.par_history)
+    py_result['pupil_type_history'] = np.array(result.pupil_type_history)
     py_result['cost_history'] = np.array(result.cost_history)
-
     #py_result['residual_histogram'] = np.array(result.residual_histogram)
     #py_result['mean_residual'] = result.mean_residual
     #py_result['std_residual'] = result.std_residual

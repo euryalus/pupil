@@ -112,6 +112,7 @@ cdef extern from 'common/types.h':
         double cost
         int number_of_pupils
         vector[vector[double]] par_history
+        vector[vector[int]] pupil_type_history
         vector[double] cost_history
         #vector[double] residual_histogram
         #double mean_residual

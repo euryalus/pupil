@@ -77,6 +77,7 @@ namespace singleeyefitter {
         double cost;
         int number_of_pupils;
         std::vector<std::vector<double>> par_history;
+        std::vector<std::vector<int>> pupil_type_history;
         std::vector<double> cost_history;
 //        std::vector<double> residual_histogram;
 //        double mean_residual;
