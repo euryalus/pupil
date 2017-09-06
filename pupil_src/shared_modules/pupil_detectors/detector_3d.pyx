@@ -93,6 +93,7 @@ cdef class Detector_3D:
 
     def set_refraction_directory(self, dir_):
         self.refraction_directory = dir_.encode()
+
     def get_refraction_directory(self):
         return self.refraction_directory
 

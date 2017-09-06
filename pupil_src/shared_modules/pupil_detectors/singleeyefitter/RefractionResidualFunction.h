@@ -84,10 +84,10 @@ Eigen::Matrix<T, 3, 1> map_to_tangent_space(const cv::Point& inlier,
 
 
                 //INITIAL RAY
-                ray_center << T(0.0),T(0.0),T(0.0);
+                ray_center << T(0.0), T(0.0), T(0.0);
 
-                ray_direction[0] = T(inlier.x)     - ray_center[0];
-                ray_direction[1] = T(inlier.y)     - ray_center[1];
+                ray_direction[0] = T(inlier.x)  - ray_center[0];
+                ray_direction[1] = T(inlier.y)  - ray_center[1];
                 ray_direction[2] = T(focal_length) - ray_center[2];
                 ray_direction = ray_direction.normalized();
 

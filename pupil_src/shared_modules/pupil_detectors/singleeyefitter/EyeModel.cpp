@@ -122,11 +122,17 @@ EyeModel::~EyeModel(){
 
 int EyeModel::addObservation(const ObservationPtr newObservationPtr){
 
-    if (newObservationPtr->getObservation2D()->confidence>0.97){
+    if (newObservationPtr->getObservation2D()->confidence>0.4){
         mSupportingPupilsToAdd.emplace_back(newObservationPtr);
-        tryTransferNewObservations();
+        for( auto& pupil : mSupportingPupilsToAdd){
+            mSupportingPupils.push_back( std::move(pupil) );
+        }
+        mSupportingPupilsToAdd.clear();
+        mSupportingPupilSize = mSupportingPupils.size();
+    }else{
+        std::cout << "Low confidence: " << newObservationPtr->getObservation2D()->confidence << std::endl;
     }
-
+    std::cout << mSupportingPupils.size() << std::endl;
     return static_cast<int>(mSupportingPupils.size());
 }
 
@@ -239,6 +245,7 @@ std::pair<Circle, double> EyeModel::presentObservation(const ObservationPtr newO
         int bin_number = static_cast<int>(angle/(3.142/20.0));
 
         if (
+//        confidence2D > 0.90
 
             (bin_number<7 &&
             ((mSupportingPupilSize>60 && (confidence2D > 0.99 && isSpatialRelevant(unprojectedCircle))) ||
@@ -249,6 +256,7 @@ std::pair<Circle, double> EyeModel::presentObservation(const ObservationPtr newO
             ((mSupportingPupilSize>60 && (confidence2D > 0.99 && isSpatialRelevant(unprojectedCircle))) ||
             ((mSupportingPupilSize>30 && mSupportingPupilSize<=60) && (confidence2D > 0.96 && isSpatialRelevant(unprojectedCircle))) ||
             (mSupportingPupilSize<=30 && (confidence2D > 0.93 && isSpatialRelevant(unprojectedCircle)))))
+
 
             ){
             shouldAddObservation = true;
@@ -627,8 +635,8 @@ double EyeModel::refineWithEdges(Sphere& sphere)
 
     for (const auto& rb: residualblock_vector){
         problem.GetParameterBlocksForResidualBlock(rb, &par_blocks);
-        problem.SetParameterLowerBound(par_blocks[2], 2, 1.0);
-        problem.SetParameterUpperBound(par_blocks[2], 2, 4.0);
+        problem.SetParameterLowerBound(par_blocks[2], 2, 0.7);
+        problem.SetParameterUpperBound(par_blocks[2], 2, 5.0);
     }
 
     // SETTING CERES OPTIONS
@@ -640,9 +648,9 @@ double EyeModel::refineWithEdges(Sphere& sphere)
    	options.use_nonmonotonic_steps = false;
 	options.linear_solver_type = ceres::DENSE_SCHUR;
 	options.use_inner_iterations = false;
-    options.gradient_tolerance = 1e-14;
-    options.function_tolerance = 1e-14;
-    options.parameter_tolerance = 1e-14;
+    options.gradient_tolerance = 1e-22;
+    options.function_tolerance = 1e-22;
+    options.parameter_tolerance = 1e-22;
     options.minimizer_progress_to_stdout = false;
 
     // CALLBACK
@@ -728,7 +736,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     ceres::Solve(options, &problem, &summary);
 
     // RUNNING SOLVER ->  ROUGH OPTIMIZATION PUPILS
-    options.max_num_iterations = 10;
+    options.max_num_iterations = 20;
     problem.SetParameterBlockConstant(&eye_params[0]);
     for (const auto rb: residualblock_vector){
         par_blocks = std::vector<double*>();
@@ -740,15 +748,20 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     // RUNNING SOLVER -> ALL PARAMS FREE
     options.max_num_iterations = 20;
     problem.SetParameterBlockVariable(&eye_params[0]);
+    ceres::Solve(options, &problem, &summary);
 
-    // GET CURRENT RESIDUALS - WITHOUT APPLICATON OF LOSS FUNCTION
+    // RUNNING SOLVER -> CENTER_WEIGHT TO ZERO
+    center_weight = 0.0;
+    options.max_num_iterations = 20;
+    ceres::Solve(options, &problem, &summary);
+
+    // GET CURRENT RESIDUALS - WITHOUT APPLICATION OF LOSS FUNCTION
     double cost;
     ceres::Problem::EvaluateOptions options_eval;
     options_eval.apply_loss_function = false;
     std::vector<ceres::ResidualBlockId> single_id;
     std::map<double, Pupil*> residual_per_pupil;
     typedef std::map<double,Pupil*>::const_iterator MapIterator;
-
     for (auto& pupil: mSupportingPupils){
          if (pupil.ceres_toggle<4){
                 single_id = {pupil.mResidualBlockId};
@@ -769,6 +782,8 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     }
     average_residual_per_block /= Nblocks;
 
+    int first_round_number_residual_blocks = problem.NumResidualBlocks();
+
     // REMOVING OUTLIER RESIDUAL BLOCKS
     for (MapIterator iter = residual_per_pupil.begin(); iter != residual_per_pupil.end(); iter++){
       if (iter->second->ceres_toggle<4){
@@ -788,7 +803,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
 
     // SETTING CENTER_WEIGHT TO ZERO
     center_weight = 0.0;
-    options.max_num_iterations = 30;
+    options.max_num_iterations = 500;
     ceres::Solve(options, &problem, &summary);
 
     // UPDATING MODEL PARAMETERS FROM OPTIMIZATION RESULT
@@ -819,7 +834,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
 
         // UPDATE OPTIMIZED PARAMTERS
         mOptimizedParams = std::vector<double>();
-        for (int i;i<5;++i){
+        for (int i; i<5; ++i){
 
             mOptimizedParams.push_back(eye_params[i]);
 
@@ -835,7 +850,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
 
         // WRITE RESULTS TO REFRACTION-RESULT OBJECT
         mResult.cost = summary.final_cost;
-        mResult.number_of_pupils = problem.NumResidualBlocks(); //FINAL RESIDUAL BLOCKS
+        mResult.number_of_pupils = first_round_number_residual_blocks; //FINAL RESIDUAL BLOCKS
         mResult.par_history = callback.get_par_history();
         mResult.cost_history = callback.get_cost_history();
         mResult.pupil_type_history = callback.get_pupil_type_history();
