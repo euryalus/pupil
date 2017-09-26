@@ -195,6 +195,16 @@ class EyeModel {
         double mBirthTimestamp;
 
         double mEdgeNumber; //Number of edges per pupil used during optimization
+        double mStrikes;
+        double mCenterWeightInitial;
+        double mCenterWeightFinal;
+        int mIterationNumbers[5];
+        double mResidualsAveragedFraction;
+        double mOutlierFactor;
+        int mStartRemoveNumber;
+        double mCauchyLossScale;
+
+
         double mEyeballRadius;
         double mCorneaRadius;
         double mIrisRadius;

@@ -278,7 +278,7 @@ cdef class Detector_3D:
         cpp2DResultPtr =  self.detector2DPtr.detect(self.detectProperties2D, cv_image, cv_image_color, debug_image, Rect_[int](roi_x,roi_y,roi_width,roi_height), visualize , False ) #we don't use debug image in 3d model
         deref(cpp2DResultPtr).timestamp = frame.timestamp #timestamp doesn't get set elsewhere and it is needt in detector3D
 
-        prediction = self.detector3DPtr.predictSingleObservation(cpp2DResultPtr)
+        prediction = self.detector3DPtr.predictSingleObservation(cpp2DResultPtr,1)
         pupil = {}
         pupil['center'] = [prediction.center[0],prediction.center[1],prediction.center[2]]
         pupil['normal'] = [prediction.normal[0],prediction.normal[1],prediction.normal[2]]
@@ -286,8 +286,30 @@ cdef class Detector_3D:
 
         return pupil
 
-    def make_Detector2DResult_result_from_dict(self, dict_):
+    def detect_single_frame_from_dict(self, dict_):
+        cdef Detector2DResult test
+        cdef shared_ptr[Detector2DResult] test_ptr = make_shared[Detector2DResult](test)
+        deref(test_ptr).image_width = 640
+        deref(test_ptr).image_height = 480
+        x, y, major, minor, angle = dict_['ellipse']
+        deref(test_ptr).ellipse = Ellipse(x, y, major, minor, angle)
+        deref(test_ptr).final_edges = Edges2D()
+        cdef Point_[int] p = Point_[int]()
+        for pp in dict_['edges']:
+            p.x = pp[0]
+            p.y = pp[1]
+            deref(test_ptr).final_edges.push_back(p)
+        deref(test_ptr).confidence = 1.0
+        deref(test_ptr).timestamp = 0.0
 
+        prediction = self.detector3DPtr.predictSingleObservation(test_ptr,0)
+        pupil = {}
+        pupil['center'] = [prediction.center[0],prediction.center[1],prediction.center[2]]
+        pupil['normal'] = [prediction.normal[0],prediction.normal[1],prediction.normal[2]]
+        pupil['radius'] = prediction.radius
+        return pupil
+
+    def make_Detector2DResult_result_from_dict(self, dict_):
         cdef Detector2DResult test
         cdef shared_ptr[Detector2DResult] test_ptr = make_shared[Detector2DResult](test)
         deref(test_ptr).final_edges = Edges2D()

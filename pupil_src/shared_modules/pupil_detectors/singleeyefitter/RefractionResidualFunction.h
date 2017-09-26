@@ -276,14 +276,12 @@ class RefractionResidualFunction
                                             const Scalar& eyeball_radius,
                                             const Scalar& focal_length,
                                             const cv::Point ellipse_center,
-                                            const double lambda_1,
                                             double * const lambda_2,
                                             const int N):
                                             edges(edges),
                                             eyeball_radius(eyeball_radius),
                                             focal_length(focal_length),
                                             ellipse_center(ellipse_center),
-                                            lambda_1(lambda_1),
                                             lambda_2(lambda_2),
                                             N(N)
                                             {
@@ -327,7 +325,7 @@ class RefractionResidualFunction
 
             for (int i = 0; i < N; ++i) {
                 upprojected_edge = map_to_tangent_space<T>(internal_edges[i], &sphere_center[0], &extended_eye_param[0], pupil_param, focal_length);
-                e[i] = T(lambda_1)*(r - (p_center-upprojected_edge).norm())/sphere_center.norm();
+                e[i] = (r - (p_center-upprojected_edge).norm())/sphere_center.norm();
 
             }
 
@@ -345,7 +343,6 @@ class RefractionResidualFunction
         const Scalar& focal_length;
         std::string filename;
         const cv::Point ellipse_center;
-        double lambda_1;
         double * const lambda_2;
         std::vector<int> v;
         const int N;

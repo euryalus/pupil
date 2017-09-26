@@ -22,7 +22,7 @@
 namespace singleeyefitter {
 
 
-EyeModelFitter::EyeModelFitter(double focalLength, Vector3 cameraCenter) :
+EyeModelFitter::EyeModelFitter(double focalLength, Vector3 cameraCenter):
     mFocalLength(std::move(focalLength)),
     mCameraCenter(std::move(cameraCenter)),
     mCurrentSphere(Sphere::Null), mCurrentInitialSphere(Sphere::Null),
@@ -67,8 +67,9 @@ EyeModelFitter::EyeModelFitter(double focalLength, Vector3 cameraCenter) :
 
 ///////FUNCTIONS FOR CONTROLLED FITTING
 
-Circle EyeModelFitter::predictSingleObservation(std::shared_ptr<Detector2DResult>& observation2D){
+Circle EyeModelFitter::predictSingleObservation(std::shared_ptr<Detector2DResult>& observation2D, bool prepare){
 
+    if (prepare){
     int image_height = observation2D->image_height;
     int image_width = observation2D->image_width;
     int image_height_half = image_height / 2.0;
@@ -89,6 +90,7 @@ Circle EyeModelFitter::predictSingleObservation(std::shared_ptr<Detector2DResult
         p.x -= image_width_half;
         p.y  = image_height_half - p.y;
     }
+    }else{}
 
     auto observation3DPtr = std::make_shared<const Observation>(observation2D, mFocalLength);
     Circle circle = mActiveModelPtr->predictSingleObservation(observation3DPtr);

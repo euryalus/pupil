@@ -155,7 +155,6 @@ cdef extern from 'common/types.h':
         vector[ModelDebugProperties] models
 
 
-
     cdef struct Detector2DProperties:
         int intensity_range
         int blur_size
@@ -214,7 +213,7 @@ cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
         int relayObservation( shared_ptr[Detector2DResult]& results, int prepare_toggle)
         Detector3DResultRefraction optimize_current_model()
         void setSphereCenter(vector[double])
-        Circle predictSingleObservation(shared_ptr[Detector2DResult]& results)
+        Circle predictSingleObservation(shared_ptr[Detector2DResult]& results, bool prepare)
         void setFitHyperParameters(int)
 
         void reset()

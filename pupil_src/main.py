@@ -155,7 +155,6 @@ def launcher():
         eyes_are_alive.append(Value(c_bool,0))
     eyes_are_alive = tuple(eyes_are_alive)
 
-
     zmq_ctx = zmq.Context()
 
     #Let the OS choose the IP and PORT
