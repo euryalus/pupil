@@ -86,12 +86,15 @@ namespace singleeyefitter {
         std::map<int,std::vector<std::vector<double>>> edge_map;
         std::vector<Circle> circles;
         std::vector<Ellipse> ellipses;
+        double resFit[2];
+
     };
 
     struct ModelDebugProperties{
 
         std::vector<double> optimizedParameters;
         std::vector<double> costPerPupil;
+        std::vector<double> resFit;
         Sphere<double> sphere;
         Sphere<double> initialSphere;
         std::vector<Vector3> binPositions;

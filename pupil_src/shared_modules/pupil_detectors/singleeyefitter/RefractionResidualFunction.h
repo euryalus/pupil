@@ -193,7 +193,7 @@ Eigen::Matrix<T, 3, 1> map_to_tangent_space(const cv::Point& inlier,
 
                     case 0: //NEAREST POINT ON EYEBALL
 
-                     //CLOSEST POINT TO EYEBALL
+                        //CLOSEST POINT TO EYEBALL
                         temp3 = sphere_center;
                         //temp3 = cornea_center;
                         temp5 = ray_direction.dot(temp3);
@@ -227,6 +227,7 @@ Eigen::Matrix<T, 3, 1> map_to_tangent_space(const cv::Point& inlier,
                         if( pow( B, 2 ) / ( 4.0*pow(A,2) ) - (C-pow(distance,2))/A < 0.0 ){
                             //std::cout<<"Case 0 is failing!"<<std::endl;
                             upprojected_edge = temp4;
+                            type_ = 4;
                             break;
                         }
 
@@ -302,13 +303,13 @@ class RefractionResidualFunction
                                             }
 
         template <typename T>
-        bool operator()(const T* const eye_center, const T* eye_param, const T* const pupil_param, T * e) const
+        bool operator()(const T* const eye_center_0, const T* const eye_center_1, const T* const eye_center_2, const T* eye_param, const T* const pupil_param, T * e) const
         {
             Eigen::Matrix<T, 3, 1> upprojected_edge;
             int i;
 
             const Eigen::Matrix<T, 3, 1> extended_eye_param{T(eyeball_radius), T(eye_param[0]), T(eye_param[1])};
-            const Eigen::Matrix<T, 3, 1> sphere_center{T(eye_center[0]),T(eye_center[1]),T(eye_center[2])};
+            const Eigen::Matrix<T, 3, 1> sphere_center{T(*eye_center_0),T(*eye_center_1),T(*eye_center_2)};
 
             T theta = pupil_param[0];
             T phi = pupil_param[1];

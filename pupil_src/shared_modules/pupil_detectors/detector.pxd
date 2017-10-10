@@ -120,11 +120,13 @@ cdef extern from 'common/types.h':
         map[int,vector[vector[double]]] edge_map
         vector[Circle] circles
         vector[Ellipse] ellipses
+        double resFit[2]
 
 
     cdef struct ModelDebugProperties:
         vector[double] optimizedParameters
         vector[double] costPerPupil
+        vector[double] resFit
         Sphere[double] sphere
         Sphere[double] initialSphere
         vector[Vector3] binPositions
@@ -153,6 +155,7 @@ cdef extern from 'common/types.h':
         Edges3D edges
         Circle predictedCircle
         vector[ModelDebugProperties] models
+
 
 
     cdef struct Detector2DProperties:
@@ -211,7 +214,7 @@ cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
 
         #funtions for controlled fitting
         int relayObservation( shared_ptr[Detector2DResult]& results, int prepare_toggle)
-        Detector3DResultRefraction optimize_current_model()
+        Detector3DResultRefraction optimize_current_model(bool initialization_toggle)
         void setSphereCenter(vector[double])
         Circle predictSingleObservation(shared_ptr[Detector2DResult]& results, bool prepare)
         void setFitHyperParameters(int)

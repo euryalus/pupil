@@ -85,7 +85,7 @@ class EyeModel {
 
         // FOR CONTROLLED FITTING
         int addObservation(const ObservationPtr);
-        Detector3DResultRefraction run_optimization();
+        Detector3DResultRefraction run_optimization(bool);
         Circle predictSingleObservation(const ObservationPtr);
         void setSphereCenter(std::vector<double>);
         void setFitHyperParameters(int);
@@ -102,6 +102,7 @@ class EyeModel {
         double getSolverFit() const ; // The residual of the sphere calculation
         std::vector<double> getOptimizedParameters() const;
         std::vector<double> getCostPerPupil() const;
+        std::vector<double> getResFit() const;
         int getNumResidualBlocks() const;
         Detector3DResultRefraction getRefractionResult() const;
 

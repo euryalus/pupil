@@ -45,6 +45,7 @@ cdef inline convertTo3DPythonRefractionResult( Detector3DResultRefraction& resul
 
     py_result = {}
 
+    py_result['resFit'] = result.resFit
     py_result['initial_center'] = result.initial_center
     py_result['optimized_center'] = result.optimized_center
     py_result['cost'] = result.cost
@@ -152,6 +153,7 @@ cdef inline prepareForVisualization3D(  Detector3DResult& result ):
         props = {}
         props['optimized_parameters'] = model.optimizedParameters
         props['cost_per_pupil'] = model.costPerPupil
+        props['resFit'] = model.resFit
         props['bin_positions'] = getBinPositions(model)
         props['sphere'] = getSphere(model)
         props['initial_sphere'] = getInitialSphere(model)

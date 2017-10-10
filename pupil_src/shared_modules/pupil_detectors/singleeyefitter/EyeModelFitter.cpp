@@ -135,10 +135,10 @@ int EyeModelFitter::relayObservation(std::shared_ptr<Detector2DResult>& observat
     return N;
 }
 
-Detector3DResultRefraction EyeModelFitter::optimize_current_model(){
+Detector3DResultRefraction EyeModelFitter::optimize_current_model(bool initialization_toggle){
 
          Detector3DResultRefraction result;
-         result = mActiveModelPtr->run_optimization();
+         result = mActiveModelPtr->run_optimization(initialization_toggle);
          return result;
 
 }
@@ -307,7 +307,7 @@ Detector3DResult EyeModelFitter::updateAndDetect(std::shared_ptr<Detector2DResul
         result.RefractionResult = mActiveModelPtr->getRefractionResult();
         props.optimizedParameters = mActiveModelPtr->getOptimizedParameters();
         props.costPerPupil = mActiveModelPtr->getCostPerPupil();
-
+        props.resFit = mActiveModelPtr->getResFit();
         props.sphere = mActiveModelPtr->getSphere();
         props.initialSphere = mActiveModelPtr->getInitialSphere();
         props.binPositions = mActiveModelPtr->getBinPositions();

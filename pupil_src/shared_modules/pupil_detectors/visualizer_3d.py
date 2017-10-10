@@ -67,6 +67,7 @@ class Eye_Visualizer(Visualizer):
 
         self.eye = eye_geometry.Eye()
         self.toggle = -1
+        self.toggle2 = -1
         self.cost_history = deque([], maxlen=200)
         self.optimization_number = 0
 
@@ -204,15 +205,15 @@ class Eye_Visualizer(Visualizer):
         glutils.draw_polyline( [ (0,0,0), (0,0,4) ] ,color=RGBA(0,0,0), line_type = GL_LINES) #normal
         glPopMatrix()
 
-    def write_result(self, result, output_dir="/home/kd/Desktop/refraction_results"):
+    def write_result(self, result, output_dir="/home/kd/Desktop/refraction_results_temp/"):
         output_dir = output_dir.decode("utf-8")
         try:
             if result['models'][0]['optimized_parameters'][2]:
-                if result['models'][0]['optimized_parameters'][2] != self.toggle:
+                if result['models'][0]['optimized_parameters'][2] != self.toggle2:
                     self.optimization_number += 1
                     #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat" % self.optimization_number, "wb"))
                     pickle.dump(result['refraction_result'], open(output_dir + "/" + "refraction_result_%i_.dat" % self.optimization_number, "wb"))
-                    self.toggle = result['models'][0]['optimized_parameters'][2]
+                    self.toggle2 = result['models'][0]['optimized_parameters'][2]
         except:
              pass
 
@@ -258,21 +259,28 @@ class Eye_Visualizer(Visualizer):
 
         try:
             if result['models'][0]['optimized_parameters'][2] != self.toggle:
+                self.m, self.c = result['models'][0]['resFit']
                 #pickle.dump(result['refraction_result'], open("/home/kd/Desktop/refraction_result.dat","wb"))
                 self.optimization_number += 1
                 #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat"%self.optimization_number, "wb"))
                 self.toggle = result['models'][0]['optimized_parameters'][2]
                 self.optimized_pupils_polar = [result['models'][0]['optimized_parameters'][i:i+3] for i in range(0, len(result['models'][0]['optimized_parameters']), 3)]
                 self.optimized_pupils_cart = [np.array([np.sin(pupil[0]) * np.cos(pupil[1]), np.cos(pupil[0]), np.sin(pupil[0]) * np.sin(pupil[1])]) for pupil in self.optimized_pupils_polar]
-                self.eye_camera_axis = -np.array(result['models'][0]['sphere'][0])
+
+                self.eye_camera_axis = np.array([0.,0.,-1.]) #-np.array(result['models'][0]['sphere'][0])
                 self.eye_camera_axis /= np.linalg.norm(self.eye_camera_axis)
+
                 self.angles = [np.arccos(np.dot(pupil, self.eye_camera_axis))/(np.pi/2.0) for pupil in self.optimized_pupils_cart]
                 self.vertices = list(zip(self.angles, np.clip(np.log10(np.array(result['models'][0]['cost_per_pupil']))+7, 0, 3)))
 
-            glutils.draw_points(self.vertices, size=10, color=RGBA(255 / 255., 173 / 255., 51 / 255., 0.8))
+            glutils.draw_points(self.vertices, size=10, color=RGBA(255 / 255., 173 / 255., 51 / 255., 0.6))
 
             cost_vertices = list(zip(np.linspace(0, len(self.cost_history) / 200., len(self.cost_history)), np.clip(self.cost_history,0,3)))
-            glutils.draw_polyline(cost_vertices, thickness=3, color=RGBA(1.0, 0, 0, 0.9))
+            glutils.draw_polyline(cost_vertices, thickness=3, color=RGBA(0, 0, 1, 0.9))
+
+            glutils.draw_polyline([[0,self.c+7],[1,self.m*np.pi/2+self.c+7]], thickness=5, color=RGBA(0, 1, 0, 0.9))
+            glutils.draw_polyline([[0,self.c+7+np.log10(7.0)],[1,self.m*np.pi/2+self.c+7+np.log10(7.0)]], thickness=5, color=RGBA(1, 0, 0, 0.9))
+
 
             if not np.linalg.norm(result['circle'][1]) < 0.1:
                 normal = np.array(result['circle'][1])

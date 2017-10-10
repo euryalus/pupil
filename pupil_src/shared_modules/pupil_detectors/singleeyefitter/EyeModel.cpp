@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <future>
 
+#include <Eigen/Dense>
+
 #include <ceres/ceres.h>
 #include <ceres/problem.h>
 #include <ceres/autodiff_cost_function.h>
@@ -95,6 +97,7 @@ EyeModel::EyeModel( int modelId, double timestamp,  double focalLength, Vector3 
     mResidualsAveragedFraction(0.8),
     mOutlierFactor(7.0),
     mStartRemoveNumber(25),
+    //mStartRemoveNumber(25),
     mCauchyLossScale(0.001),
     mEyeballRadius(12.0),
     mCorneaRadius(7.5),
@@ -150,21 +153,44 @@ int EyeModel::addObservation(const ObservationPtr newObservationPtr){
 }
 
 
-Detector3DResultRefraction EyeModel::run_optimization(){
+Detector3DResultRefraction EyeModel::run_optimization(bool initialization_toggle){
 
-        auto sphere  = initialiseModel();
-        auto sphere2 = sphere;
-        mInitialSphere = sphere2;
-        double fit = refineWithEdges(sphere);
-        mSphere = sphere;
-        mSolverFit = fit;
+        if (initialization_toggle){
 
-        mResult.initial_center[0] = mInitialSphere.center[0];
-        mResult.initial_center[1] = mInitialSphere.center[1];
-        mResult.initial_center[2] = mInitialSphere.center[2];
-        mResult.optimized_center[0] = mSphere.center[0];
-        mResult.optimized_center[1] = mSphere.center[1];
-        mResult.optimized_center[2] = mSphere.center[2];
+            auto sphere  = initialiseModel();
+            auto sphere2 = sphere;
+            mInitialSphere = sphere2;
+            double fit = refineWithEdges(sphere);
+
+            mSphere = sphere;
+
+            mSolverFit = fit;
+
+            mResult.initial_center[0] = mInitialSphere.center[0];
+            mResult.initial_center[1] = mInitialSphere.center[1];
+            mResult.initial_center[2] = mInitialSphere.center[2];
+            mResult.optimized_center[0] = mSphere.center[0];
+            mResult.optimized_center[1] = mSphere.center[1];
+            mResult.optimized_center[2] = mSphere.center[2];
+
+        }else{
+
+            mInitialSphere = mSphere;
+            auto sphere = mSphere;
+            double fit = refineWithEdges(sphere);
+
+            mSphere = sphere;
+
+            mSolverFit = fit;
+
+            mResult.initial_center[0] = mInitialSphere.center[0];
+            mResult.initial_center[1] = mInitialSphere.center[1];
+            mResult.initial_center[2] = mInitialSphere.center[2];
+            mResult.optimized_center[0] = mSphere.center[0];
+            mResult.optimized_center[1] = mSphere.center[1];
+            mResult.optimized_center[2] = mSphere.center[2];
+
+        }
 
         return mResult;
 
@@ -189,6 +215,9 @@ void EyeModel::setSphereCenter(std::vector<double> center){
     mSphere.center[0] = center[0];
     mSphere.center[1] = center[1];
     mSphere.center[2] = center[2];
+    eye_params[0] = center[0];
+    eye_params[1] = center[1];
+    eye_params[2] = center[2];
     mSphere.radius = sqrt(pow(mEyeballRadius,2)-pow(mIrisRadius,2));
 
 }
@@ -574,11 +603,14 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     double center_weight = mCenterWeightInitial;
     double * const center_weight_ptr = &center_weight;
 
-    // SAVING INITIAL POSITON OF EYEBALL
+    // SAVING INITIAL POSITION OF EYEBALL
     double initial[3];
     initial[0] = eye_params[0];
     initial[1] = eye_params[1];
     initial[2] = eye_params[2];
+
+    if (initial[2]>60.0){eye_params[2]=59.9;}
+    if (initial[2]<15.0){eye_params[2]=15.1;}
 
     // ADDING NEW PUPILS
     int N_;
@@ -607,11 +639,11 @@ double EyeModel::refineWithEdges(Sphere& sphere)
                 N_ = mEdgeNumber < pupilInliers.size() ? mEdgeNumber : pupilInliers.size();
             }
 
-            ceres::CostFunction * current_cost = new ceres::AutoDiffCostFunction<RefractionResidualFunction<double>, ceres::DYNAMIC, 3, 2, 3>(
+            ceres::CostFunction * current_cost = new ceres::AutoDiffCostFunction<RefractionResidualFunction<double>, ceres::DYNAMIC, 1, 1, 1, 2, 3>(
             new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, center_weight_ptr, N_),
             N_+1);
 
-            pupil.mResidualBlockId = problem.AddResidualBlock(current_cost, new ceres::CauchyLoss(mCauchyLossScale), &eye_params[0], &eye_params[3], &(pupil.optimizedParams[0]));
+            pupil.mResidualBlockId = problem.AddResidualBlock(current_cost, new ceres::CauchyLoss(mCauchyLossScale), &eye_params[0],  &eye_params[1],  &eye_params[2], &eye_params[3], &(pupil.optimizedParams[0]));
 
             temp_circles.push_back(selectUnprojectedCircle(mSphere, pupil.mObservationPtr->getUnprojectedCirclePair()));
             temp_ellipses.push_back(ellipse);
@@ -630,21 +662,23 @@ double EyeModel::refineWithEdges(Sphere& sphere)
         }
     }
 
+
     //SAVE ALL RESIDUALBLOCK-IDS IN A VECTOR
     std::vector<ceres::ResidualBlockId> residualblock_vector;
     problem.GetResidualBlocks(&residualblock_vector);
 
     // SETTING BOUNDS - Z-POSITION OF SPHERE
-    problem.SetParameterLowerBound(&eye_params[0], 2, 15.0);
-    problem.SetParameterUpperBound(&eye_params[0], 2, 60.0);
+    problem.SetParameterLowerBound(&eye_params[2], 0, 15.0);
+    problem.SetParameterUpperBound(&eye_params[2], 0, 60.0);
 
     // SETTING BOUNDS - PUPIL RADII
     std::vector<double*> par_blocks;
 
+
     for (const auto& rb: residualblock_vector){
         problem.GetParameterBlocksForResidualBlock(rb, &par_blocks);
-        problem.SetParameterLowerBound(par_blocks[2], 2, 0.7);
-        problem.SetParameterUpperBound(par_blocks[2], 2, 5.0);
+        problem.SetParameterLowerBound(par_blocks[4], 2, 0.7);
+        problem.SetParameterUpperBound(par_blocks[4], 2, 5.0);
     }
 
     // SETTING CERES OPTIONS
@@ -729,6 +763,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     ceres::Solver::Summary summary;
 
     //SETTING EYE GEOMETRY CONSTANT
+    problem.SetParameterBlockConstant(&eye_params[2]);
     problem.SetParameterBlockConstant(&eye_params[3]);
 
     //SAVING INITIAL POSITION
@@ -736,11 +771,11 @@ double EyeModel::refineWithEdges(Sphere& sphere)
 
     // RUNNING SOLVER -> ROUGH OPTIMIZATION SPHERE
     center_weight = mCenterWeightInitial;
-    options.max_num_iterations =  mIterationNumbers[0] ;
+    options.max_num_iterations =  mIterationNumbers[0];
     for (const auto rb: residualblock_vector){
         par_blocks = std::vector<double*>();
         problem.GetParameterBlocksForResidualBlock(rb, &par_blocks);
-        problem.SetParameterBlockConstant(par_blocks[2]);
+        problem.SetParameterBlockConstant(par_blocks[4]);
     }
     ceres::Solve(options, &problem, &summary);
 
@@ -748,10 +783,12 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     center_weight = mCenterWeightInitial;
     options.max_num_iterations =  mIterationNumbers[1];
     problem.SetParameterBlockConstant(&eye_params[0]);
+    problem.SetParameterBlockConstant(&eye_params[1]);
+    problem.SetParameterBlockConstant(&eye_params[2]);
     for (const auto rb: residualblock_vector){
         par_blocks = std::vector<double*>();
         problem.GetParameterBlocksForResidualBlock(rb, &par_blocks);
-        problem.SetParameterBlockVariable(par_blocks[2]);
+        problem.SetParameterBlockVariable(par_blocks[4]);
     }
     ceres::Solve(options, &problem, &summary);
 
@@ -759,6 +796,8 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     center_weight = mCenterWeightInitial;
     options.max_num_iterations =  mIterationNumbers[2];
     problem.SetParameterBlockVariable(&eye_params[0]);
+    problem.SetParameterBlockVariable(&eye_params[1]);
+    problem.SetParameterBlockVariable(&eye_params[2]); //HERE WE CAN FIX THE z POSITION!
     ceres::Solve(options, &problem, &summary);
 
     // RUNNING SOLVER -> CENTER_WEIGHT TO ZERO
@@ -766,53 +805,70 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     options.max_num_iterations =  mIterationNumbers[3];
     ceres::Solve(options, &problem, &summary);
 
-    // GET CURRENT RESIDUALS - WITHOUT APPLICATION OF LOSS FUNCTION
-    double cost;
-    ceres::Problem::EvaluateOptions options_eval;
-    options_eval.apply_loss_function = false;
-    std::vector<ceres::ResidualBlockId> single_id;
-    std::map<double, Pupil*> residual_per_pupil;
-    typedef std::map<double,Pupil*>::const_iterator MapIterator;
-    for (auto& pupil: mSupportingPupils){
-         if(pupil.ceres_toggle<mStrikes){
-                single_id = {pupil.mResidualBlockId};
-                options_eval.residual_blocks = single_id;
-                problem.Evaluate(options_eval, &cost, NULL, NULL, NULL);
-                residual_per_pupil.insert(std::make_pair(cost, &pupil));
-                double alpha = acos(sin(pupil.optimizedParams[0]) * sin(pupil.optimizedParams[1]));
-                //std::cout << cost << "," << alpha << "," << std::endl;
-         }
-    }
-
     // REMEMBER NUMBER OF INITIAL PUPILS IN OPTIMIZATION
     int first_round_number_residual_blocks = problem.NumResidualBlocks();
 
-    if (first_round_number_residual_blocks>mStartRemoveNumber){
+        // GET CURRENT RESIDUALS - WITHOUT APPLICATION OF LOSS FUNCTION
+        double cost;
+        ceres::Problem::EvaluateOptions options_eval;
+        options_eval.apply_loss_function = false;
+        std::vector<ceres::ResidualBlockId> single_id;
+        std::map<double, Pupil*> residual_per_pupil;
+        typedef std::map<double,Pupil*>::const_iterator MapIterator;
+        for (auto& pupil: mSupportingPupils){
+             if(pupil.ceres_toggle<mStrikes){
+                    single_id = {pupil.mResidualBlockId};
+                    options_eval.residual_blocks = single_id;
+                    problem.Evaluate(options_eval, &cost, NULL, NULL, NULL);
+                    residual_per_pupil.insert(std::make_pair(cost/sqrt(N_+1), &pupil));
+             }
+        }
+
+        Eigen::VectorXd mc(2); // SLOPE OF RESIDUALS
+        mc[0] = 0;
+        mc[1] = 0;
+
+        double alpha;
 
         // GET AVERAGE COST OF FRACTION OF RESIDUAL BLOCKS
         int Nblocks = static_cast<int>(residual_per_pupil.size()*mResidualsAveragedFraction);
+
+         // SETUP FOR LINEAR REGRESSION ON RESIDUALS AS FUNCTION OF ANGLE
+        Eigen::MatrixXd A(Nblocks ,2);
+        Eigen::VectorXd b(Nblocks );
+
         double average_residual_per_block = 0;
         int counter = 0;
+
         for (MapIterator iter = residual_per_pupil.begin(); iter != residual_per_pupil.end(); iter++){
             if (counter<Nblocks){
                 average_residual_per_block += iter->first;
+                alpha = acos(-sin(iter->second->optimizedParams[0]) * sin(iter->second->optimizedParams[1]));
+                A(counter,0)=alpha;
+                A(counter,1)=1.0;
+                b(counter)=log10(iter->first);
             }
             ++counter;
         }
         average_residual_per_block /= Nblocks;
+        mc = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
 
-        // REMOVE OUTLIER RESIDUAL BLOCKS
-        for (MapIterator iter = residual_per_pupil.begin(); iter != residual_per_pupil.end(); iter++){
-          if (iter->second->ceres_toggle<mStrikes){
-                if (iter->first>mOutlierFactor*average_residual_per_block){
-                    problem.RemoveResidualBlock(iter->second->mResidualBlockId);
-                    iter->second->ceres_toggle += 1;
-                    if (iter->second->ceres_toggle>=mStrikes){
-                        std::cout << "Removing Pupil!" << std::endl;
+        if (first_round_number_residual_blocks>mStartRemoveNumber){  // ONLY START REMOVING PUPILS WHEN YOU ALREADY HAVE A FEW
+
+            // REMOVE OUTLIER RESIDUAL BLOCKS
+            for (MapIterator iter = residual_per_pupil.begin(); iter != residual_per_pupil.end(); iter++){
+              if (iter->second->ceres_toggle<mStrikes){
+    //                if (iter->first>mOutlierFactor*average_residual_per_block){
+                    alpha = acos(-sin(iter->second->optimizedParams[0]) * sin(iter->second->optimizedParams[1]));
+                    if (log10(iter->first)>log10(mOutlierFactor)+mc[0]*alpha+mc[1]){
+                        problem.RemoveResidualBlock(iter->second->mResidualBlockId);
+                        iter->second->ceres_toggle += 1;
+                        if (iter->second->ceres_toggle>=mStrikes){
+                            std::cout << "Removing Pupil!" << std::endl;
+                        }
                     }
                 }
             }
-        }
 
     }
 
@@ -848,6 +904,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
             options_eval.residual_blocks = single_id;
             problem.Evaluate(options_eval, &cost, NULL, NULL, NULL);
             mCostPerBlock.push_back(cost/sqrt(N_+1));
+            //std::cout << cost/sqrt(N_+1) << std::endl;
 
         }
 
@@ -883,6 +940,8 @@ double EyeModel::refineWithEdges(Sphere& sphere)
         mResult.initial_center[0] = initial[0];
         mResult.initial_center[1] = initial[1];
         mResult.initial_center[2] = initial[2];
+        mResult.resFit[0] = mc(0);
+        mResult.resFit[1] = mc(1);
 
     }
 
@@ -1257,12 +1316,14 @@ std::pair<EyeModel::PupilParams, double> EyeModel::getRefractedCircle( const Sph
       }
 
       ceres::ResidualBlockId res_id;
-      res_id = problem.AddResidualBlock(new ceres::AutoDiffCostFunction < RefractionResidualFunction<double>, ceres::DYNAMIC, 3, 2, 3 > (
+      res_id = problem.AddResidualBlock(new ceres::AutoDiffCostFunction < RefractionResidualFunction<double>, ceres::DYNAMIC, 1, 1, 1, 2, 3 > (
                                new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, center_weight_ptr, N_),
                                N_+1),
-                               new ceres::CauchyLoss(mCauchyLossScale), &par[0], &par[3], &par[5]);
+                               new ceres::CauchyLoss(mCauchyLossScale), &par[0], &par[1], &par[2], &par[3], &par[5]);
 
       problem.SetParameterBlockConstant(&par[0]);
+      problem.SetParameterBlockConstant(&par[1]);
+      problem.SetParameterBlockConstant(&par[2]);
       problem.SetParameterBlockConstant(&par[3]);
       problem.SetParameterLowerBound(&par[5], 2, 0.7);
       problem.SetParameterUpperBound(&par[5], 2, 5.0);
@@ -1373,5 +1434,11 @@ Detector3DResultRefraction EyeModel::getRefractionResult() const
     return mResult;
 }
 
+
+std::vector<double> EyeModel::getResFit() const
+{
+    std::vector<double> temp = { mResult.resFit[0], mResult.resFit[1]};
+    return temp;
+}
 
 } // singleeyefitter

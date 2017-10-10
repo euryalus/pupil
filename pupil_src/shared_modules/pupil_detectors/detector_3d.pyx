@@ -89,7 +89,7 @@ cdef class Detector_3D:
         if not self.detectProperties3D:
             self.detectProperties3D["model_sensitivity"] = 0.997
 
-        self.refraction_directory = "/home/kd/Desktop/"
+        self.refraction_directory = "/home/kd/Desktop/refraction_results_temp"
 
     def set_refraction_directory(self, dir_):
         self.refraction_directory = dir_.encode()
@@ -199,8 +199,8 @@ cdef class Detector_3D:
 
         return pyResult
 
-    def run_optimization_on_current_model(self):
-        result = self.detector3DPtr.optimize_current_model()
+    def run_optimization_on_current_model(self, initialization_toggle=True):
+        result = self.detector3DPtr.optimize_current_model(initialization_toggle)
         pyResult = convertTo3DPythonRefractionResult(result)
         return pyResult
 
