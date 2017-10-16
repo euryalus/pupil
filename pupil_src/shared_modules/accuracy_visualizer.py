@@ -124,6 +124,7 @@ class Accuracy_Visualizer(Plugin):
         # between fixations locations and the corresponding
         # locations of the fixation targets.
         undistorted = self.g_pool.capture.intrinsics.undistortPoints(locations)
+        self.undistorted = undistorted.copy()
         undistorted.shape = -1, 2
         # append column with z=1
         # using idea from https://stackoverflow.com/questions/8486294/how-to-add-an-extra-column-to-an-numpy-array
@@ -136,6 +137,7 @@ class Accuracy_Visualizer(Plugin):
         # No need to calculate norms, since A and B are normalized in our case.
         # np.einsum('ij,ij->i', A, B) equivalent to np.diagonal(A @ B.T) but faster.
         angular_err = np.einsum('ij,ij->i', undistorted_3d[::2, :], undistorted_3d[1::2, :])
+        self.angular_err = angular_err.copy()
 
         # Good values are close to 1. since cos(0) == 1.
         # Therefore we look for values greater than cos(outlier_threshold)
@@ -143,7 +145,7 @@ class Accuracy_Visualizer(Plugin):
         selected_samples = angular_err[selected_indices]
         num_used, num_total = selected_samples.shape[0], angular_err.shape[0]
 
-        self.error_lines = self.error_lines[selected_indices].reshape(-1, 2)  # shape: num_used x 2
+        self.t = self.error_lines[selected_indices].reshape(-1, 2)  # shape: num_used x 2
         self.accuracy = np.rad2deg(np.arccos(selected_samples.mean()))
         logger.info('Angular accuracy: {}. Used {} of {} samples.'.format(self.accuracy, num_used, num_total))
 
@@ -166,6 +168,33 @@ class Accuracy_Visualizer(Plugin):
         num_used, num_total = succesive_distances.shape[0], succesive_distances_gaze.shape[0]
         self.precision = np.sqrt(np.mean(np.arccos(succesive_distances) ** 2))
         logger.info("Angular precision: {}. Used {} of {} samples.".format(self.precision, num_used, num_total))
+
+        #############
+
+        import pickle
+
+        self.prediction = prediction.copy()
+
+        rec_path = False
+        for plugin in self.g_pool.plugins:
+            if plugin.class_name == 'Recorder':
+                try:
+                    rec_path = plugin.rec_path
+                except:
+                    pass
+
+        if rec_path:
+
+            ofile = open(rec_path + "accuracy_results.txt", "a")
+            ofile.write('{} {} {} {} \n'.format(self.accuracy, self.precision, num_used, num_total))
+            ofile.close()
+
+            pickle.dump(prediction,open(rec_path+"prediction.p","bw"))
+            pickle.dump(self.error_lines, open(rec_path + "error_lines.p", "bw"))
+            pickle.dump(self.angular_err, open(rec_path + "angular_err.p", "bw"))
+            pickle.dump(self.undistorted, open(rec_path + "undistorted.p", "bw"))
+
+        #############
 
     def gl_display(self):
         if self.error_lines is not None:

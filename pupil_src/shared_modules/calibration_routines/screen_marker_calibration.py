@@ -135,7 +135,12 @@ class Screen_Marker_Calibration(Calibration_Plugin):
             if self.mode == 'calibration':
                 self.sites = [(.5, .5), (0., 1.), (1., 1.), (1., 0.), (0., 0.)]
             else:
-                self.sites = [(.25, .5), (.5, .25), (.75, .5), (.5, .75)]
+                self.sites = []
+                for x in np.linspace(0.1, 0.9,10):
+                    for y in np.linspace(0.1, 0.9, 10):
+                        self.sites.append((x,y))
+            #tuple(np.random.uniform(0, 1, 2)) for i in range(100)]
+                #[(.25, .5), (.5, .25), (.75, .5), (.5, .75)]
         else:
             if self.mode == 'calibration':
                 self.sites = [(.25, .5), (0, .5), (0., 1.), (.5, 1.), (1., 1.),

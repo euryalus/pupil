@@ -1,2 +1,2 @@
 SET PATH=%PATH%;%~dp0..\pupil_external
-python main.py player %1%
+python3 main.py player %1%

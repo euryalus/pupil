@@ -341,6 +341,21 @@ def select_calibration_method(g_pool, pupil_list, ref_list):
 def finish_calibration(g_pool, pupil_list, ref_list):
     method, result = select_calibration_method(g_pool, pupil_list, ref_list)
     g_pool.active_calibration_plugin.notify_all(result)
+
+    #############
+    import pickle
+    rec_path = False
+    for plugin in g_pool.plugins:
+        if plugin.class_name=='Recorder':
+            try:
+                rec_path = plugin.rec_path
+            except:
+                pass
+    if rec_path:
+        pickle.dump(result, open(rec_path+"gaze_mapper_notification", "bw"))
+        pickle.dump(g_pool.capture.intrinsics, open(rec_path + "g_pool_intrinsics", "bw"))
+    #############
+
     if result['subject'] != 'calibration.failed':
         ts = g_pool.get_timestamp()
         g_pool.active_calibration_plugin.notify_all({'subject': 'calibration.successful',

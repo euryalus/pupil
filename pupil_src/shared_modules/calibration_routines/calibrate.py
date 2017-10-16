@@ -236,7 +236,7 @@ def make_map_function(cx,cy,n):
     return fn
 
 
-def closest_matches_binocular(ref_pts, pupil_pts,max_dispersion=1/15.):
+def closest_matches_binocular(ref_pts, pupil_pts, max_dispersion=1/15.):
     '''
     get pupil positions closest in time to ref points.
     return list of dict with matching ref, pupil0 and pupil1 data triplets.
@@ -277,7 +277,7 @@ def closest_matches_binocular(ref_pts, pupil_pts,max_dispersion=1/15.):
     return matched
 
 
-def closest_matches_monocular(ref_pts, pupil_pts,max_dispersion=1/15.):
+def closest_matches_monocular(ref_pts, pupil_pts, max_dispersion=1/15.):
     '''
     get pupil positions closest in time to ref points.
     return list of dict with matching ref and pupil datum.
