@@ -145,7 +145,7 @@ class Accuracy_Visualizer(Plugin):
         selected_samples = angular_err[selected_indices]
         num_used, num_total = selected_samples.shape[0], angular_err.shape[0]
 
-        self.t = self.error_lines[selected_indices].reshape(-1, 2)  # shape: num_used x 2
+        self.error_lines = self.error_lines[selected_indices].reshape(-1, 2)  # shape: num_used x 2
         self.accuracy = np.rad2deg(np.arccos(selected_samples.mean()))
         logger.info('Angular accuracy: {}. Used {} of {} samples.'.format(self.accuracy, num_used, num_total))
 

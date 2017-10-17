@@ -25,7 +25,8 @@ class Calibration_Plugin(Plugin):
     def __init__(self, g_pool):
         super().__init__(g_pool)
         self.g_pool.active_calibration_plugin = self
-        self.pupil_confidence_threshold = 0.6
+        #self.pupil_confidence_threshold = 0.6
+        self.pupil_confidence_threshold = 0.0
         self.active = False
         self.mode = 'calibration'
 

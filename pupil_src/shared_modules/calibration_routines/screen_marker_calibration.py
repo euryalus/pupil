@@ -75,8 +75,8 @@ class Screen_Marker_Calibration(Calibration_Plugin):
         self.detected = False
         self.screen_marker_state = 0.
         self.sample_duration =  sample_duration # number of frames to sample per site
-        self.lead_in = 25 #frames of marker shown before starting to sample
-        self.lead_out = 5 #frames of markers shown after sampling is donw
+        self.lead_in = 15 #25 #frames of marker shown before starting to sample
+        self.lead_out = 5 #5 #frames of markers shown after sampling is donw
 
         self.active_site = None
         self.sites = []
@@ -121,7 +121,7 @@ class Screen_Marker_Calibration(Calibration_Plugin):
         self.menu.append(ui.Selector('monitor_idx',self,selection = range(len(self.monitor_names)),labels=self.monitor_names,label='Monitor'))
         self.menu.append(ui.Switch('fullscreen',self,label='Use fullscreen'))
         self.menu.append(ui.Slider('marker_scale',self,step=0.1,min=0.5,max=2.0,label='Marker size'))
-        self.menu.append(ui.Slider('sample_duration',self,step=1,min=10,max=100,label='Sample duration'))
+        self.menu.append(ui.Slider('sample_duration',self,step=1,min=1,max=100,label='Sample duration'))
 
     def start(self):
         if not self.g_pool.capture.online:
