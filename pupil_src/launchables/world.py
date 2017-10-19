@@ -392,8 +392,8 @@ def world(timebase, eyes_are_alive, ipc_pub_url, ipc_sub_url,
         toggle_general_settings(False)
 
         # now the we have  aproper window we can load the last gui configuration
-        g_pool.gui.configuration = session_settings.get('ui_config', {})
-
+        #g_pool.gui.configuration = session_settings.get('ui_config', {})
+        g_pool.gui.configuration = {}
         # create a timer to control window update frequency
         window_update_timer = timer(1 / 60)
         def window_should_update():

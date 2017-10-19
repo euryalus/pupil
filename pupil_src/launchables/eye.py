@@ -400,7 +400,8 @@ def eye(timebase, is_alive_flag, ipc_pub_url, ipc_sub_url, ipc_push_url,
         glfw.glfwSetDropCallback(main_window, on_drop)
 
         # load last gui configuration
-        g_pool.gui.configuration = session_settings.get('ui_config', {})
+        #g_pool.gui.configuration = session_settings.get('ui_config', {})
+        g_pool.gui.configuration = {}
 
         # set up performance graphs
         pid = os.getpid()
