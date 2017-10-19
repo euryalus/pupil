@@ -642,13 +642,12 @@ double EyeModel::refineWithEdges(Sphere& sphere)
             ceres::CostFunction * current_cost = new ceres::AutoDiffCostFunction<RefractionResidualFunction<double>, ceres::DYNAMIC, 1, 1, 1, 2, 3>(
             new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, center_weight_ptr, N_),
             N_+1);
-
             pupil.mResidualBlockId = problem.AddResidualBlock(current_cost, new ceres::CauchyLoss(mCauchyLossScale), &eye_params[0],  &eye_params[1],  &eye_params[2], &eye_params[3], &(pupil.optimizedParams[0]));
+            all_par_blocks.push_back(pupil.optimizedParams);
 
+            // NEEDED FOR DEBUGGING
             temp_circles.push_back(selectUnprojectedCircle(mSphere, pupil.mObservationPtr->getUnprojectedCirclePair()));
             temp_ellipses.push_back(ellipse);
-
-            all_par_blocks.push_back(pupil.optimizedParams);
 
             //SAVING EDGES FOR DEBUGGING
             temp_edge_map.insert(std::make_pair(i, std::vector<std::vector<double>>()));
@@ -755,6 +754,8 @@ double EyeModel::refineWithEdges(Sphere& sphere)
             std::vector<Pupil*> mUsedPupils;
 
     };
+
+    // Needed for debugging
     MyCallback2 callback = MyCallback2(all_par_blocks, eye_params, used_pupils);
     options.callbacks.push_back(&callback);
     options.update_state_every_iteration = true;
@@ -808,67 +809,67 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     // REMEMBER NUMBER OF INITIAL PUPILS IN OPTIMIZATION
     int first_round_number_residual_blocks = problem.NumResidualBlocks();
 
-        // GET CURRENT RESIDUALS - WITHOUT APPLICATION OF LOSS FUNCTION
-        double cost;
-        ceres::Problem::EvaluateOptions options_eval;
-        options_eval.apply_loss_function = false;
-        std::vector<ceres::ResidualBlockId> single_id;
-        std::map<double, Pupil*> residual_per_pupil;
-        typedef std::map<double,Pupil*>::const_iterator MapIterator;
-        for (auto& pupil: mSupportingPupils){
-             if(pupil.ceres_toggle<mStrikes){
-                    single_id = {pupil.mResidualBlockId};
-                    options_eval.residual_blocks = single_id;
-                    problem.Evaluate(options_eval, &cost, NULL, NULL, NULL);
-                    residual_per_pupil.insert(std::make_pair(cost/sqrt(N_+1), &pupil));
-             }
+    // GET CURRENT RESIDUALS - WITHOUT APPLICATION OF LOSS FUNCTION
+    double cost;
+    ceres::Problem::EvaluateOptions options_eval;
+    options_eval.apply_loss_function = false;
+    std::vector<ceres::ResidualBlockId> single_id;
+    std::map<double, Pupil*> residual_per_pupil;
+    typedef std::map<double,Pupil*>::const_iterator MapIterator;
+    for (auto& pupil: mSupportingPupils){
+         if(pupil.ceres_toggle<mStrikes){
+                single_id = {pupil.mResidualBlockId};
+                options_eval.residual_blocks = single_id;
+                problem.Evaluate(options_eval, &cost, NULL, NULL, NULL);
+                residual_per_pupil.insert(std::make_pair(cost/sqrt(N_+1), &pupil));
+         }
+    }
+
+    Eigen::VectorXd mc(2); // SLOPE OF RESIDUALS
+    mc[0] = 0;
+    mc[1] = 0;
+
+    double alpha;
+
+    // GET AVERAGE COST OF FRACTION OF RESIDUAL BLOCKS
+    int Nblocks = static_cast<int>(residual_per_pupil.size()*mResidualsAveragedFraction);
+
+     // SETUP FOR LINEAR REGRESSION ON RESIDUALS AS FUNCTION OF ANGLE
+    Eigen::MatrixXd A(Nblocks ,2);
+    Eigen::VectorXd b(Nblocks );
+
+    double average_residual_per_block = 0;
+    int counter = 0;
+
+    for (MapIterator iter = residual_per_pupil.begin(); iter != residual_per_pupil.end(); iter++){
+        if (counter<Nblocks){
+            average_residual_per_block += iter->first;
+            alpha = acos(-sin(iter->second->optimizedParams[0]) * sin(iter->second->optimizedParams[1]));
+            A(counter,0)=alpha;
+            A(counter,1)=1.0;
+            b(counter)=log10(iter->first);
         }
+        ++counter;
+    }
+    average_residual_per_block /= Nblocks;
+    mc = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
 
-        Eigen::VectorXd mc(2); // SLOPE OF RESIDUALS
-        mc[0] = 0;
-        mc[1] = 0;
+    if (first_round_number_residual_blocks>mStartRemoveNumber){  // ONLY START REMOVING PUPILS WHEN YOU ALREADY HAVE A FEW
 
-        double alpha;
-
-        // GET AVERAGE COST OF FRACTION OF RESIDUAL BLOCKS
-        int Nblocks = static_cast<int>(residual_per_pupil.size()*mResidualsAveragedFraction);
-
-         // SETUP FOR LINEAR REGRESSION ON RESIDUALS AS FUNCTION OF ANGLE
-        Eigen::MatrixXd A(Nblocks ,2);
-        Eigen::VectorXd b(Nblocks );
-
-        double average_residual_per_block = 0;
-        int counter = 0;
-
+        // REMOVE OUTLIER RESIDUAL BLOCKS
         for (MapIterator iter = residual_per_pupil.begin(); iter != residual_per_pupil.end(); iter++){
-            if (counter<Nblocks){
-                average_residual_per_block += iter->first;
+          if (iter->second->ceres_toggle<mStrikes){
+//                if (iter->first>mOutlierFactor*average_residual_per_block){
                 alpha = acos(-sin(iter->second->optimizedParams[0]) * sin(iter->second->optimizedParams[1]));
-                A(counter,0)=alpha;
-                A(counter,1)=1.0;
-                b(counter)=log10(iter->first);
-            }
-            ++counter;
-        }
-        average_residual_per_block /= Nblocks;
-        mc = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
-
-        if (first_round_number_residual_blocks>mStartRemoveNumber){  // ONLY START REMOVING PUPILS WHEN YOU ALREADY HAVE A FEW
-
-            // REMOVE OUTLIER RESIDUAL BLOCKS
-            for (MapIterator iter = residual_per_pupil.begin(); iter != residual_per_pupil.end(); iter++){
-              if (iter->second->ceres_toggle<mStrikes){
-    //                if (iter->first>mOutlierFactor*average_residual_per_block){
-                    alpha = acos(-sin(iter->second->optimizedParams[0]) * sin(iter->second->optimizedParams[1]));
-                    if (log10(iter->first)>log10(mOutlierFactor)+mc[0]*alpha+mc[1]){
-                        problem.RemoveResidualBlock(iter->second->mResidualBlockId);
-                        iter->second->ceres_toggle += 1;
-                        if (iter->second->ceres_toggle>=mStrikes){
-                            std::cout << "Removing Pupil!" << std::endl;
-                        }
+                if (log10(iter->first)>log10(mOutlierFactor)+mc[0]*alpha+mc[1]){
+                    problem.RemoveResidualBlock(iter->second->mResidualBlockId);
+                    iter->second->ceres_toggle += 1;
+                    if (iter->second->ceres_toggle>=mStrikes){
+                        std::cout << "Removing Pupil!" << std::endl;
                     }
                 }
             }
+        }
 
     }
 
@@ -927,12 +928,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
         // WRITE RESULTS TO REFRACTION-RESULT OBJECT
         mResult.cost = summary.final_cost;
         mResult.number_of_pupils = first_round_number_residual_blocks; //FINAL RESIDUAL BLOCKS
-        mResult.par_history = callback.get_par_history();
-        mResult.cost_history = callback.get_cost_history();
-        mResult.pupil_type_history = callback.get_pupil_type_history();
-        mResult.circles  = temp_circles;
-        mResult.ellipses = temp_ellipses;
-        mResult.edge_map = temp_edge_map;
+
         mResult.message = summary.message;
         mResult.optimized_center[0] = eye_params[0];
         mResult.optimized_center[1] = eye_params[1];
@@ -942,6 +938,14 @@ double EyeModel::refineWithEdges(Sphere& sphere)
         mResult.initial_center[2] = initial[2];
         mResult.resFit[0] = mc(0);
         mResult.resFit[1] = mc(1);
+
+        // NEEDED FOR DEBUGGING
+        mResult.par_history = callback.get_par_history();
+        mResult.cost_history = callback.get_cost_history();
+        mResult.pupil_type_history = callback.get_pupil_type_history();
+        mResult.circles  = temp_circles;
+        mResult.ellipses = temp_ellipses;
+        mResult.edge_map = temp_edge_map;
 
     }
 
@@ -1433,7 +1437,6 @@ Detector3DResultRefraction EyeModel::getRefractionResult() const
     std::lock_guard<std::mutex> lock_refraction(mRefractionMutex);
     return mResult;
 }
-
 
 std::vector<double> EyeModel::getResFit() const
 {

@@ -89,6 +89,7 @@ class EyeModel {
         Circle predictSingleObservation(const ObservationPtr);
         void setSphereCenter(std::vector<double>);
         void setFitHyperParameters(int);
+        //
 
         // GETTER
         Sphere getSphere() const;
