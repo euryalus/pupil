@@ -31,43 +31,6 @@ class Empty(object):
     pass
 
 
-def get_past_timestamp(idx, timestamps):
-    """
-    recursive function to find the most recent valid timestamp in the past
-    """
-    if idx == 0:
-        # if at the beginning, we can't go back in time.
-        return get_future_timestamp(idx, timestamps)
-    if timestamps[idx]:
-        res = timestamps[idx][-1]
-        return res
-    else:
-        return get_past_timestamp(idx-1, timestamps)
-
-
-def get_future_timestamp(idx, timestamps):
-    """
-    recursive function to find most recent valid timestamp in the future
-    """
-    if idx == len(timestamps)-1:
-        # if at the end, we can't go further into the future.
-        return get_past_timestamp(idx, timestamps)
-    elif timestamps[idx]:
-        return timestamps[idx][0]
-    else:
-        idx = min(len(timestamps), idx+1)
-        return get_future_timestamp(idx, timestamps)
-
-
-def get_nearest_timestamp(past_timestamp, future_timestamp, world_timestamp):
-    dt_past = abs(past_timestamp-world_timestamp)
-    dt_future = abs(future_timestamp-world_timestamp)  # abs prob not necessary here, but just for sanity
-    if dt_past < dt_future:
-        return past_timestamp
-    else:
-        return future_timestamp
-
-
 def correlate_eye_world(eye_timestamps, world_timestamps):
     """
     This function takes a list of eye timestamps and world timestamps
@@ -75,50 +38,9 @@ def correlate_eye_world(eye_timestamps, world_timestamps):
     Returns a mapping that correlates a single eye frame index with each world frame index.
     Up and downsampling is used to achieve this mapping.
     """
-    # return framewise mapping as a list
-    e_ts = eye_timestamps
-    w_ts = list(world_timestamps)
-    eye_frames_by_timestamp = dict(zip(e_ts, range(len(e_ts))))
-
-    eye_timestamps_by_world_index = [[] for i in world_timestamps]
-
-    frame_idx = 0
-    try:
-        current_e_ts = e_ts.pop(0)
-    except IndexError:
-        # logger.warning("No eye timestamps at all in the section.")
-        return eye_timestamps_by_world_index
-
-    while e_ts:
-        # if the current eye timestamp is before the mean of the current
-        # world frame timestamp and the next worldframe timestamp
-        try:
-            t_between_frames = (w_ts[frame_idx]+w_ts[frame_idx+1]) / 2.
-        except IndexError:
-            break
-        if current_e_ts <= t_between_frames:
-            eye_timestamps_by_world_index[frame_idx].append(current_e_ts)
-            current_e_ts = e_ts.pop(0)
-        else:
-            frame_idx += 1
-
-    idx = 0
-    eye_world_frame_map = []
-    # some entiries in the `eye_timestamps_by_world_index` might be empty -- no correlated eye timestamp
-    # so we will either show the previous frame or next frame - whichever is temporally closest
-    for candidate, world_ts in zip(eye_timestamps_by_world_index, w_ts):
-        # if there is no candidate, then assign it to the closest timestamp
-        if not candidate:
-            # get most recent timestamp, either in the past or future
-            e_past_ts = get_past_timestamp(idx, eye_timestamps_by_world_index)
-            e_future_ts = get_future_timestamp(idx, eye_timestamps_by_world_index)
-            eye_world_frame_map.append(eye_frames_by_timestamp[get_nearest_timestamp(e_past_ts, e_future_ts, world_ts)])
-        else:
-            # TODO - if there is a list of len > 1 - then we should check which is the temporally closest timestamp
-            eye_world_frame_map.append(eye_frames_by_timestamp[eye_timestamps_by_world_index[idx][-1]])
-        idx += 1
-
-    return eye_world_frame_map
+    correlation = np.searchsorted(eye_timestamps, world_timestamps)
+    correlation[correlation >= eye_timestamps.size] = eye_timestamps.size - 1
+    return correlation
 
 
 class Eye_Wrapper(object):
@@ -142,7 +64,7 @@ class Eye_Wrapper(object):
         except (FileNotFoundError, IndexError, FileCaptureError):
             logger.warning('Video for eye{} was not found or could not be opened.'.format(self.eyeid))
         else:
-            self.eye_world_frame_map = correlate_eye_world(list(self.source.timestamps), world_timestamps)
+            self.eye_world_frame_map = correlate_eye_world(self.source.timestamps, world_timestamps)
             if self.menu is not None:
                 self.menu.read_only = False
 
@@ -254,6 +176,9 @@ class Eye_Wrapper(object):
 
 
 class Vis_Eye_Video_Overlay(Visualizer_Plugin_Base):
+    icon_chr = chr(0xec02)
+    icon_font = 'pupil_icons'
+
     def __init__(self, g_pool, alpha=0.6, eye_scale_factor=.5, show_ellipses=True,
                  eye0_config={'pos': (640, 10)}, eye1_config={'pos': (10, 10)}):
         super().__init__(g_pool)
@@ -270,15 +195,10 @@ class Vis_Eye_Video_Overlay(Visualizer_Plugin_Base):
         self.eye0.initliaze_video(g_pool.rec_dir, g_pool.timestamps)
         self.eye1.initliaze_video(g_pool.rec_dir, g_pool.timestamps)
 
-    def init_gui(self):
+    def init_ui(self):
+        self.add_menu()
         # initialize the menu
-        self.menu = ui.Scrolling_Menu('Eye Video Overlay')
-        self.g_pool.gui.append(self.menu)
-
-        def close():
-            self.alive = False
-
-        self.menu.append(ui.Button('Close', close))
+        self.menu.label = 'Eye Video Overlay'
         self.menu.append(ui.Info_Text('Show the eye video overlaid on top of the world video. Eye 0 is usually the right eye.'))
         self.menu.append(ui.Slider('alpha', self, min=0.0, step=0.05, max=1.0, label='Opacity'))
         self.menu.append(ui.Slider('eye_scale_factor', self, min=0.2, step=0.1, max=1.0, label='Video Scale'))
@@ -321,20 +241,9 @@ class Vis_Eye_Video_Overlay(Visualizer_Plugin_Base):
         self.eye1.visualize(frame, self.alpha, self.eye_scale_factor,
                             self.show_ellipses, events['pupil_positions'])
 
-    def deinit_gui(self):
-        if self.menu is not None:
-            self.eye0.remove_eye_menu(self.menu)
-            self.eye1.remove_eye_menu(self.menu)
-            self.g_pool.gui.remove(self.menu)
-            self.menu = None
+    def deinit_ui(self):
+        self.remove_menu()
 
     def get_init_dict(self):
         return {'alpha': self.alpha, 'eye_scale_factor': self.eye_scale_factor, 'show_ellipses': self.show_ellipses,
                 'eye0_config': self.eye0.config, 'eye1_config': self.eye1.config}
-
-    def cleanup(self):
-        """ called when the plugin gets terminated.
-        This happens either voluntarily or forced.
-        if you have a GUI or glfw window destroy it here.
-        """
-        self.deinit_gui()

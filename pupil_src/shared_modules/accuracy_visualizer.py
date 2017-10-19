@@ -32,6 +32,8 @@ class Accuracy_Visualizer(Plugin):
     Points are collected at sites not between
     """
     order = .8
+    icon_chr = chr(0xec11)
+    icon_font = 'pupil_icons'
 
     def __init__(self, g_pool, outlier_threshold=5.):
         super().__init__(g_pool)
@@ -44,13 +46,9 @@ class Accuracy_Visualizer(Plugin):
         self.succession_threshold = np.cos(np.deg2rad(.5))
         self._outlier_threshold = outlier_threshold  # in degrees
 
-    def init_gui(self):
-        self.menu = ui.Growing_Menu('Accuracy Visualizer')
-        self.g_pool.sidebar.append(self.menu)
-
-        def close():
-            self.alive = False
-        self.menu.append(ui.Button('Close', close))
+    def init_ui(self):
+        self.add_menu()
+        self.menu.label = 'Accuracy Visualizer'
 
         general_help = '''Measure gaze mapping accuracy and precision using samples
                           that were collected during calibration. The outlier threshold
@@ -79,13 +77,8 @@ class Accuracy_Visualizer(Plugin):
         self.menu.append(ui.Text_Input('precision', self, 'Angular Precision', setter=ignore,
                          getter=lambda: self.precision if self.precision is not None else 'Not available'))
 
-    def deinit_gui(self):
-        if self.menu:
-            self.g_pool.sidebar.remove(self.menu)
-            self.menu = None
-
-    def cleanup(self):
-        self.deinit_gui()
+    def deinit_ui(self):
+        self.remove_menu()
 
     @property
     def outlier_threshold(self):
@@ -131,6 +124,7 @@ class Accuracy_Visualizer(Plugin):
         # between fixations locations and the corresponding
         # locations of the fixation targets.
         undistorted = self.g_pool.capture.intrinsics.undistortPoints(locations)
+        self.undistorted = undistorted.copy()
         undistorted.shape = -1, 2
         # append column with z=1
         # using idea from https://stackoverflow.com/questions/8486294/how-to-add-an-extra-column-to-an-numpy-array
@@ -143,6 +137,7 @@ class Accuracy_Visualizer(Plugin):
         # No need to calculate norms, since A and B are normalized in our case.
         # np.einsum('ij,ij->i', A, B) equivalent to np.diagonal(A @ B.T) but faster.
         angular_err = np.einsum('ij,ij->i', undistorted_3d[::2, :], undistorted_3d[1::2, :])
+        self.angular_err = angular_err.copy()
 
         # Good values are close to 1. since cos(0) == 1.
         # Therefore we look for values greater than cos(outlier_threshold)
@@ -173,6 +168,33 @@ class Accuracy_Visualizer(Plugin):
         num_used, num_total = succesive_distances.shape[0], succesive_distances_gaze.shape[0]
         self.precision = np.sqrt(np.mean(np.arccos(succesive_distances) ** 2))
         logger.info("Angular precision: {}. Used {} of {} samples.".format(self.precision, num_used, num_total))
+
+        #############
+
+        import pickle
+
+        self.prediction = prediction.copy()
+
+        rec_path = False
+        for plugin in self.g_pool.plugins:
+            if plugin.class_name == 'Recorder':
+                try:
+                    rec_path = plugin.rec_path
+                except:
+                    pass
+
+        if rec_path:
+
+            ofile = open(rec_path + "accuracy_results.txt", "a")
+            ofile.write('{} {} {} {} \n'.format(self.accuracy, self.precision, num_used, num_total))
+            ofile.close()
+
+            pickle.dump(prediction,open(rec_path+"prediction.p","bw"))
+            pickle.dump(self.error_lines, open(rec_path + "error_lines.p", "bw"))
+            pickle.dump(self.angular_err, open(rec_path + "angular_err.p", "bw"))
+            pickle.dump(self.undistorted, open(rec_path + "undistorted.p", "bw"))
+
+        #############
 
     def gl_display(self):
         if self.error_lines is not None:

@@ -69,14 +69,24 @@ if 'profiled' in sys.argv:
     from launchables.world import world_profiled as world
     from launchables.service import service_profiled as service
     from launchables.eye import eye_profiled as eye
-
+    from launchables.player import player_profiled as player
 else:
     from launchables.world import world
     from launchables.service import service
     from launchables.eye import eye
-from launchables.player import player, player_drop
+    from launchables.player import player
+from launchables.player import player_drop
 from launchables.marker_detectors import circle_detector
-from launchables.world import reset_restart
+
+
+def clear_settings(user_dir):
+    import glob, os, time
+    time.sleep(1.)
+    for f in glob.glob(os.path.join(user_dir, 'user_settings_*')):
+        print('Clearing {}...'.format(f))
+        os.remove(f)
+    time.sleep(5)
+
 
 def launcher():
     """Starts eye processes. Hosts the IPC Backbone and Logging functions.
@@ -202,7 +212,7 @@ def launcher():
                 'notify.player_process.',
                 'notify.world_process.',
                 'notify.service_process',
-                'notify.reset_restart_process.',
+                'notify.clear_settings_process.',
                 'notify.player_drop_process.',
                 'notify.launcher_process.',
                 'notify.meta.should_doc',
@@ -268,12 +278,10 @@ def launcher():
                                     user_dir,
                                     app_version,
                                     )).start()
-                elif "notify.reset_restart_process.should_start" in topic:
-                    Process(target=reset_restart,
-                              name= 'reset_restart',
-                              args=(ipc_push_url,
-                                    user_dir,
-                                    )).start()
+                elif "notify.clear_settings_process.should_start" in topic:
+                    Process(target=clear_settings,
+                              name='clear_settings',
+                              args=(user_dir,)).start()
                 elif "notify.service_process.should_start" in topic:
                     Process(target=service,
                               name= 'service',

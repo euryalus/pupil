@@ -37,17 +37,22 @@ class HMD_Calibration(Calibration_Plugin):
         self.menu = None
         self.button = None
 
-    def init_gui(self):
+    def init_ui(self):
+        super().init_ui()
 
         def dummy(_):
             logger.error("HMD calibration must be initiated from the HMD client.")
 
-        self.info = ui.Info_Text("Calibrate gaze parameters to map onto an HMD.")
-        self.g_pool.calibration_menu.append(self.info)
+        self.menu.append(ui.Info_Text("Calibrate gaze parameters to map onto an HMD."))
         self.button = ui.Thumb('active',self,setter=dummy,label='C',hotkey='c')
         self.button.on_color[:] = (.3,.2,1.,.9)
-        self.g_pool.quickbar.insert(0,self.button)
+        self.g_pool.quickbar.insert(0, self.button)
 
+    def deinit_ui(self):
+        if self.button:
+            self.g_pool.quickbar.remove(self.button)
+            self.button = None
+        super().deinit_ui()
 
     def on_notify(self,notification):
         '''Calibrates user gaze for HMDs
@@ -84,16 +89,6 @@ class HMD_Calibration(Calibration_Plugin):
                     logger.error("Ref data can only be added when calibratio is runnings.")
         except KeyError as e:
             logger.error('Notification: {} not conform. Raised error {}'.format(notification,e))
-
-
-    def deinit_gui(self):
-        if self.info:
-            self.g_pool.calibration_menu.remove(self.info)
-            self.info = None
-        if self.button:
-            self.g_pool.quickbar.remove(self.button)
-            self.button = None
-
 
     def start(self,hmd_video_frame_size,outlier_threshold):
         self.active = True
@@ -189,7 +184,6 @@ class HMD_Calibration(Calibration_Plugin):
         """
         if self.active:
             self.stop()
-        self.deinit_gui()
 
 
 class HMD_Calibration_3D(HMD_Calibration,Calibration_Plugin):
@@ -363,17 +357,12 @@ class HMD_Calibration_3D(HMD_Calibration,Calibration_Plugin):
         user_calibration_data = {'timestamp': ts, 'pupil_list': pupil_list, 'ref_list': ref_list, 'calibration_method': method}
         save_object(user_calibration_data, os.path.join(g_pool.user_dir, "user_calibration_data"))
 
-        camera_matrix = [[700, 0., 1280 / 2.],
-                         [0., 700, 720 / 2.],
-                         [0., 0., 1.]]
-        dist_coefs = [[0., 0., 0., 0., 0.]]
-        scene_dummy_cam = {'camera_matrix': camera_matrix, 'dist_coefs': dist_coefs, 'camera_name': 'ideal camera with focal length 700', 'resolution': (1280, 720)}
-        self.g_pool.active_calibration_plugin.notify_all({'subject': 'start_plugin',
-                                                         'name': 'Binocular_Vector_Gaze_Mapper',
-                                                         'args': {'eye_camera_to_world_matrix0': eye_camera_to_world_matrix0.tolist(),
-                                                                  'eye_camera_to_world_matrix1': eye_camera_to_world_matrix1.tolist(),
-                                                                  'camera_intrinsics': scene_dummy_cam,
-                                                                  'cal_points_3d': points,
-                                                                  'cal_ref_points_3d': points_a,
-                                                                  'cal_gaze_points0_3d': points_b,
-                                                                  'cal_gaze_points1_3d': points_c}})
+        mapper_args = {'subject': 'start_plugin',
+                       'name': 'Binocular_Vector_Gaze_Mapper',
+                       'args': {'eye_camera_to_world_matrix0': eye_camera_to_world_matrix0.tolist(),
+                                'eye_camera_to_world_matrix1': eye_camera_to_world_matrix1.tolist(),
+                                'cal_points_3d': points,
+                                'cal_ref_points_3d': points_a,
+                                'cal_gaze_points0_3d': points_b,
+                                'cal_gaze_points1_3d': points_c}}
+        self.g_pool.active_calibration_plugin.notify_all(mapper_args)
