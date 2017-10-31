@@ -693,6 +693,7 @@ double EyeModel::refineWithEdges(Sphere& sphere)
     options.function_tolerance = 1e-22;
     options.parameter_tolerance = 1e-22;
     options.minimizer_progress_to_stdout = false;
+    options.num_threads = 4;
 
     // CALLBACK
     class MyCallback2: public ceres::IterationCallback {
