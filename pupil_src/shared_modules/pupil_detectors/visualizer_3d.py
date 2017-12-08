@@ -206,6 +206,7 @@ class Eye_Visualizer(Visualizer):
         glPopMatrix()
 
     def write_result(self, result, output_dir="/home/kd/Desktop/refraction_results_temp/"):
+
         output_dir = output_dir.decode("utf-8")
         try:
             if result['models'][0]['optimized_parameters'][2]:
@@ -309,7 +310,7 @@ class Eye_Visualizer(Visualizer):
         if not self.window:
             return
 
-        self.cost_history.append(np.log10(np.mean(result['models'][0]['cost_per_pupil']))+7)
+        #self.cost_history.append(np.log10(np.mean(result['models'][0]['cost_per_pupil']))+7)
         self.begin_update_window()
 
         self.image_width , self.image_height = g_pool.capture.frame_size

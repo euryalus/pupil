@@ -63,6 +63,15 @@ cdef class Detector_3D:
         #region_step_epsilon = 0.5
         self.detector3DPtr = new EyeModelFitter(focal_length)
 
+        if g_pool:
+
+            Cp = np.load(g_pool.user_dir+"/Cp.npy")
+            Ct = np.load(g_pool.user_dir+"/Ct.npy")
+            Cr = np.load(g_pool.user_dir+"/Cr.npy")
+            exponents = np.load(g_pool.user_dir+"/exponents.npy")
+            constants = np.load(g_pool.user_dir+"/constants.npy")
+            self.detector3DPtr.setApproximationParameters(Cp, Ct, Cr, exponents, constants)
+
     def __init__(self, g_pool = None, settings = None ):
 
         #debug window
@@ -75,7 +84,7 @@ cdef class Detector_3D:
         self.detectProperties3D = settings['3D_Settings'] if settings else {}
 
         if not self.detectProperties2D:
-            self.detectProperties2D["coarse_detection"] = False
+            self.detectProperties2D["coarse_detection"] = True
             self.detectProperties2D["coarse_filter_min"] = 128
             self.detectProperties2D["coarse_filter_max"] = 280
             self.detectProperties2D["intensity_range"] = 23
@@ -202,8 +211,8 @@ cdef class Detector_3D:
         pyResult = convertTo3DPythonResult(cpp3DResult,frame)
 
         #FOR HEADLESS EXPERIMENTS
-        self.pyResult3D = prepareForVisualization3D(cpp3DResult)
-        self.debugVisualizer3D.write_result(self.pyResult3D, self.refraction_directory)
+        #self.pyResult3D = prepareForVisualization3D(cpp3DResult)
+        #self.debugVisualizer3D.write_result(self.pyResult3D, self.refraction_directory)
 
         if debugDetector:
            self.pyResult3D = prepareForVisualization3D(cpp3DResult)
@@ -226,7 +235,7 @@ cdef class Detector_3D:
         image_height = frame.height
 
         cdef unsigned char[:,::1] img = frame.gray
-        cdef Mat cv_image = Mat(image_height, image_width, CV_8UC1, <void *> &img[0,0] )
+        cdef Mat cv_image = Mat( image_height, image_width, CV_8UC1, <void *> &img[0,0] )
 
         cdef unsigned char[:,:,:] img_color
         cdef Mat cv_image_color
@@ -234,7 +243,7 @@ cdef class Detector_3D:
 
         if visualize:
             img_color = frame.img
-            cv_image_color = Mat(image_height, image_width, CV_8UC3, <void *> &img_color[0,0,0] )
+            cv_image_color = Mat( image_height, image_width, CV_8UC3, <void *> &img_color[0,0,0] )
 
         roi = Roi((0,0))
         roi.set(user_roi.get())

@@ -218,6 +218,7 @@ cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
         void setSphereCenter(vector[double])
         Circle predictSingleObservation(shared_ptr[Detector2DResult]& results, bool prepare)
         void setFitHyperParameters(int)
+        void setApproximationParameters(vector[double],vector[double],vector[double],vector[double],vector[double])
 
         void reset()
         double getFocalLength()

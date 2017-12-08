@@ -125,6 +125,78 @@ EyeModel::EyeModel( int modelId, double timestamp,  double focalLength, Vector3 
         mResult.edge_map = std::map<int,std::vector<std::vector<double>>>();
         mResult.circles = std::vector<Circle>();
         mResult.ellipses  = std::vector<Ellipse>();
+
+        std::ifstream is;
+        std::vector<double> temp;
+        std::vector<int> temp2;
+
+        double value;
+
+//        is.open("/home/kd/Desktop/Cp.txt");
+//        if (is){
+//            while ( is >> value ) {
+//                temp.push_back(value);
+//            }
+//        }
+//        is.close();
+//        mCp.resize(temp.size(),1);
+//        for (int i=0;i<temp.size();i++){
+//            mCp(i)=temp[i];
+//        }
+//        temp.clear();
+//
+//        is.open("/home/kd/Desktop/Ct.txt");
+//        if (is){
+//            while ( is >> value ) {
+//                temp.push_back(value);
+//            }
+//        }
+//        is.close();
+//        mCt.resize(temp.size(),1);
+//        for (int i=0;i<temp.size();i++){
+//         mCt(i)=temp[i];
+//        }
+//        temp.clear();
+//
+//        is.open("/home/kd/Desktop/Cr.txt");
+//        if (is){
+//            while ( is >> value ) {
+//                temp.push_back(value);
+//            }
+//        }
+//        is.close();
+//        mCr.resize(temp.size(),1);
+//        for (int i=0;i<temp.size();i++){
+//            mCr(i)=temp[i];
+//        }
+//        temp.clear();
+//
+//        is.open("/home/kd/Desktop/exponents.txt");
+//        if (is){
+//            while ( is >> value ) {
+//                temp2.push_back(value);
+//            }
+//        }
+//        is.close();
+//        mExponents.resize(temp2.size()/5,5);
+//        for (int i=0;i<temp2.size();i++){
+//            mExponents(i/5,i%5)=temp2[i];
+//        }
+//        temp2.clear();
+//
+//        is.open("/home/kd/Desktop/constant.txt");
+//        if (is){
+//            while ( is >> value ) {
+//                temp.push_back(value);
+//            }
+//        }
+//        is.close();
+//        mConstants.resize(temp.size(),1);
+//        for (int i=0;i<temp.size();i++){
+//            mConstants(i)=temp[i];
+//        }
+//        temp.clear();
+
     }
 
 EyeModel::~EyeModel(){
@@ -132,9 +204,38 @@ EyeModel::~EyeModel(){
     //wait for thread to finish before we dealloc
     if( mWorker.joinable() )
         mWorker.join();
+
 }
 
 // CODE FOR CONTROLLED FITTING ((SEMI)INDEPENDENT OF EYE FITTER)
+
+
+void EyeModel::setApproximationParameters(std::vector<double> Cp, std::vector<double> Ct, std::vector<double> Cr, std::vector<double> exponents, std::vector<double> constants){
+
+        mCp.resize(Cp.size(),1);
+        mCt.resize(Ct.size(),1);
+        mCr.resize(Cr.size(),1);
+
+        for (int i; i<Cp.size();i++){
+
+            mCp(i,0) = Cp[i];
+            mCt(i,0) = Ct[i];
+            mCr(i,0) = Cr[i];
+
+        }
+
+        mExponents.resize(exponents.size()/5,5);
+        for (int i; i<exponents.size();i++){
+            mExponents(i/5,i%5) = exponents[i];
+        }
+
+        mConstants.resize(constants.size(),1);
+        for (int i; i<constants.size();i++){
+            mConstants(i,0) = constants[i];
+        }
+
+}
+
 
 int EyeModel::addObservation(const ObservationPtr newObservationPtr){
 
@@ -1268,97 +1369,201 @@ Eigen::Matrix<double,3,3> correction_matrix(Eigen::Matrix<double,3,1> v1, Eigen:
 std::pair<EyeModel::PupilParams, double> EyeModel::getRefractedCircle( const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation ) const
 {
 
-      // PARAMTERS FOR COSTFUNCTION
-      double center_weight;
-      double * const center_weight_ptr = &center_weight;
+        double sx,sy,sz;
+        sx = sphere.center[0];
+        sy = sphere.center[1];
+        sz = sphere.center[2];
 
-      Eigen::Matrix<double, Eigen::Dynamic, 1> par;
-      par = Eigen::Matrix<double, Eigen::Dynamic, 1>(8);
-      Eigen::Matrix<double, 3, 1> pupil_radial = unrefracted_circle.center-sphere.center;
-      Eigen::Matrix<double, 2, 1> pupil_spherical = math::cart2sph(pupil_radial[0], pupil_radial[1], pupil_radial[2]);
+        if (sx<0.001){sx+=0.001;}
+        if (sy<0.001){sy+=0.001;}
 
-      par.segment<3>(0) = mSphere.center;
-      par[3] = mCorneaRadius;
-      par[4] = mIrisRadius;
+        double xi = -atan2(sy,sx);
 
-      if (true){  // CORRECTION WITH PHENOMENOLOGICAL CONSTANTS
+        Eigen::Matrix<double, 3, 3> R;
+        R << cos(xi),-sin(xi),0,sin(xi),cos(xi),0,0,0,1;
+        Eigen::Matrix<double, 3, 3> Rinv;
+        Rinv << cos(-xi),-sin(-xi),0,sin(-xi),cos(-xi),0,0,0,1;
 
-          Eigen::Matrix<double, 3, 1> v2 = math::sph2cart<double>(1.0, pupil_spherical[0], pupil_spherical[1]);
-          Eigen::Matrix<double, 3, 1> v1 = -sphere.center;
-          v1.normalize();
-          double alpha = 0.17 * acos(v1.dot(v2));
-          Eigen::Matrix<double, 3, 3> R = correction_matrix(v1, v2, alpha);
-          v1 = R*v2;
-          Eigen::Matrix<double, 2, 1> corrected_spherical = math::cart2sph(v1[0],v1[1],v1[2]);
-          double corrected_radius = 1./sqrt(0.55*pow(alpha, 2)-0.08*alpha+1.4)*unrefracted_circle.radius;
+        double sx_rot, sy_rot, sz_rot;
+        sx_rot = R(0,0)*sx+R(0,1)*sy+R(0,2)*sz;
+        sy_rot = R(1,0)*sx+R(1,1)*sy+R(1,2)*sz;
+        sz_rot = R(2,0)*sx+R(2,1)*sy+R(2,2)*sz;
 
-          par[5] = corrected_spherical[0];
-          par[6] = corrected_spherical[1];
-          par[7] = corrected_radius;
+        double frame_height = static_cast<double>(observation->getObservation2D()->image_height);
+        double frame_width = static_cast<double>(observation->getObservation2D()->image_width);
+        double x, y, area;
 
-      }else{
+        x = observation->getObservation2D()->ellipse.center[0]+frame_width/2.0;
+        y = frame_height/2.0-observation->getObservation2D()->ellipse.center[1];
+        x /= frame_width;
+        y /= frame_height;
+        y = 1-y;
+        area = observation->getObservation2D()->ellipse.area();
 
-          par[5] = pupil_spherical[0];
-          par[6] = pupil_spherical[1];
-          par[7] = unrefracted_circle.radius;
+        double xscaled = x*frame_width-frame_width/2.0;
+        double yscaled = y*frame_height-frame_height/2.0;
 
-      }
+        double xrot =  R(0,0)*xscaled+R(0,1)*yscaled;
+        double yrot =  R(1,0)*xscaled+R(1,1)*yscaled;
 
-      if ( par(7,0) < 0.7 ) par(7,0) = 0.70001;
-      if ( par(7,0) > 5.0 ) par(7,0) = 4.99999;
+        xrot = (xrot+frame_width/2.)/frame_width;
+        yrot = (yrot+frame_height/2.)/frame_height;
 
-      const auto& pupilInliers = observation->getObservation2D()->final_edges;
-      const Ellipse& ellipse =  observation->getObservation2D()->ellipse;
-      cv::Point ellipse_center(ellipse.center[0], ellipse.center[1]);
+        double inputs[5];
 
-      ceres::Problem problem;
+        //SCALING OF INPUTS
+        inputs[0] = (sx_rot - mConstants[0])/(mConstants[5]);
+        inputs[1] = (sz_rot - mConstants[1])/(mConstants[6]);
+        inputs[2] = (xrot   - mConstants[2])/(mConstants[7]);
+        inputs[3] = (yrot   - mConstants[3])/(mConstants[8]);
+        inputs[4] = (area   - mConstants[4])/(mConstants[9]);
 
-      int N_;
-      if (mEdgeNumber==-1){
-          N_ = pupilInliers.size();
-      }else{
-          N_ = 2*mEdgeNumber < pupilInliers.size() ? 2*mEdgeNumber : pupilInliers.size();
-      }
+        Eigen::Matrix<double, Eigen::Dynamic, 1> polynomial_features;
+        polynomial_features.resize(mExponents.rows(),1);
+        polynomial_features(0,0) = 1.0;
+        for (int i=1;i<mExponents.rows();i++){
+            polynomial_features(i,0) = 1.0;
+            for (int j=0;j<5;j++){
+                if (mExponents(i,j)>0.1){
+                   polynomial_features(i,0) *= pow(inputs[j],mExponents(i,j));
+                }
+           }
+        }
 
-      ceres::ResidualBlockId res_id;
-      res_id = problem.AddResidualBlock(new ceres::AutoDiffCostFunction < RefractionResidualFunction<double>, ceres::DYNAMIC, 1, 1, 1, 2, 3 > (
-                               new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, center_weight_ptr, N_),
-                               N_+1),
-                               new ceres::CauchyLoss(mCauchyLossScale), &par[0], &par[1], &par[2], &par[3], &par[5]);
+        //APPLY LINEAR MAPPING TO POLYNOMIAL FEATURES
+        double phi0; // = 0;
+        double theta0; // = 0;
+        double pupil_radius; // = 0;
 
-      problem.SetParameterBlockConstant(&par[0]);
-      problem.SetParameterBlockConstant(&par[1]);
-      problem.SetParameterBlockConstant(&par[2]);
-      problem.SetParameterBlockConstant(&par[3]);
-      problem.SetParameterLowerBound(&par[5], 2, 0.7);
-      problem.SetParameterUpperBound(&par[5], 2, 5.0);
+        phi0 = mCp.dot(polynomial_features);
+        theta0 = mCt.dot(polynomial_features);
+        pupil_radius = mCr.dot(polynomial_features);
+        phi0         += mConstants[10];
+        theta0       += mConstants[11];
+        pupil_radius += mConstants[12];
 
-      ceres::Solver::Options options;
-      options.linear_solver_type = ceres::DENSE_QR;
-      options.minimizer_progress_to_stdout = false;
-      options.function_tolerance = 1e-22;
-      ceres::Solver::Summary summary;
+        //ROTATE GAZE VECTOR TO ORIGINAL POSITION OF SPHERE
+        Eigen::Matrix<double, 3, 1> gaze_vector_0 = math::sph2cart<double>(1.0, theta0, phi0);
+        gaze_vector_0[0] += sx_rot;
+        gaze_vector_0[1] += sy_rot;
+        gaze_vector_0[2] += sz_rot;
 
-      center_weight = mCenterWeightInitial;
-      options.max_num_iterations = 40;
-      ceres::Solve(options, &problem, &summary);
+        Eigen::Matrix<double, 3, 1> gaze_vector;
+        gaze_vector[0] =  Rinv(0,0)*gaze_vector_0[0]+Rinv(0,1)*gaze_vector_0[1]+Rinv(0,2)*gaze_vector_0[2];
+        gaze_vector[1] =  Rinv(1,0)*gaze_vector_0[0]+Rinv(1,1)*gaze_vector_0[1]+Rinv(1,2)*gaze_vector_0[2];
+        gaze_vector[2] =  Rinv(2,0)*gaze_vector_0[0]+Rinv(2,1)*gaze_vector_0[1]+Rinv(2,2)*gaze_vector_0[2];
 
-      center_weight = mCenterWeightFinal;
-      options.max_num_iterations = 20;
-      ceres::Solve(options, &problem, &summary);
+        //TRANSFORM TO SPHERICAL COORDINATES
+        Eigen::Matrix<double, 2, 1> gv_spherical = math::cart2sph<double>(gaze_vector[0]-sx, gaze_vector[1]-sy, gaze_vector[2]-sz);
+        double phi;
+        double theta;
+        phi = gv_spherical[1];
+        theta = gv_spherical[0];
 
-      PupilParams pupilParams = PupilParams(par(5,0), par(6,0), par(7,0));
+        //ISTANTIATE PupilParams OBJECT WITH RESULTS
+        PupilParams pupilParams = PupilParams(theta, phi, 2*pupil_radius);
+        //PupilParams pupilParams = PupilParams(1.5, 1.5, 1.0);
 
-      double cost;
-      ceres::Problem::EvaluateOptions options_eval;
-      options_eval.apply_loss_function = false;
-      std::vector<ceres::ResidualBlockId> single_id;
-      single_id = {res_id};
-      options_eval.residual_blocks = single_id;
-      problem.Evaluate(options_eval, &cost, NULL, NULL, NULL);
-      return  {pupilParams,cost/sqrt(2*N_+1)};
-
+        return  {pupilParams, 0};
 }
+
+
+//std::pair<EyeModel::PupilParams, double> EyeModel::getRefractedCircle( const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation ) const
+//{
+//
+//      // PARAMTERS FOR COSTFUNCTION
+//      double center_weight;
+//      double * const center_weight_ptr = &center_weight;
+//
+//      Eigen::Matrix<double, Eigen::Dynamic, 1> par;
+//      par = Eigen::Matrix<double, Eigen::Dynamic, 1>(8);
+//      Eigen::Matrix<double, 3, 1> pupil_radial = unrefracted_circle.center-sphere.center;
+//      Eigen::Matrix<double, 2, 1> pupil_spherical = math::cart2sph(pupil_radial[0], pupil_radial[1], pupil_radial[2]);
+//
+//      par.segment<3>(0) = mSphere.center;
+//      par[3] = mCorneaRadius;
+//      par[4] = mIrisRadius;
+//
+//      if (true){  // CORRECTION WITH PHENOMENOLOGICAL CONSTANTS
+//
+//          Eigen::Matrix<double, 3, 1> v2 = math::sph2cart<double>(1.0, pupil_spherical[0], pupil_spherical[1]);
+//          Eigen::Matrix<double, 3, 1> v1 = -sphere.center;
+//          v1.normalize();
+//          double alpha = 0.17 * acos(v1.dot(v2));
+//          Eigen::Matrix<double, 3, 3> R = correction_matrix(v1, v2, alpha);
+//          v1 = R*v2;
+//          Eigen::Matrix<double, 2, 1> corrected_spherical = math::cart2sph(v1[0],v1[1],v1[2]);
+//          double corrected_radius = 1./sqrt(0.55*pow(alpha, 2)-0.08*alpha+1.4)*unrefracted_circle.radius;
+//
+//          par[5] = corrected_spherical[0];
+//          par[6] = corrected_spherical[1];
+//          par[7] = corrected_radius;
+//
+//      }else{
+//
+//          par[5] = pupil_spherical[0];
+//          par[6] = pupil_spherical[1];
+//          par[7] = unrefracted_circle.radius;
+//
+//      }
+//
+//      if ( par(7,0) < 0.7 ) par(7,0) = 0.70001;
+//      if ( par(7,0) > 5.0 ) par(7,0) = 4.99999;
+//
+//      const auto& pupilInliers = observation->getObservation2D()->final_edges;
+//      const Ellipse& ellipse =  observation->getObservation2D()->ellipse;
+//      cv::Point ellipse_center(ellipse.center[0], ellipse.center[1]);
+//
+//      ceres::Problem problem;
+//
+//      int N_;
+//      if (mEdgeNumber==-1){
+//          N_ = pupilInliers.size();
+//      }else{
+//          N_ = 2*mEdgeNumber < pupilInliers.size() ? 2*mEdgeNumber : pupilInliers.size();
+//      }
+//
+//      ceres::ResidualBlockId res_id;
+//      res_id = problem.AddResidualBlock(new ceres::AutoDiffCostFunction < RefractionResidualFunction<double>, ceres::DYNAMIC, 1, 1, 1, 2, 3 > (
+//                               new RefractionResidualFunction<double>(pupilInliers, mEyeballRadius, mFocalLength, ellipse_center, center_weight_ptr, N_),
+//                               N_+1),
+//                               new ceres::CauchyLoss(mCauchyLossScale), &par[0], &par[1], &par[2], &par[3], &par[5]);
+//
+//      problem.SetParameterBlockConstant(&par[0]);
+//      problem.SetParameterBlockConstant(&par[1]);
+//      problem.SetParameterBlockConstant(&par[2]);
+//      problem.SetParameterBlockConstant(&par[3]);
+//      problem.SetParameterLowerBound(&par[5], 2, 0.7);
+//      problem.SetParameterUpperBound(&par[5], 2, 5.0);
+//
+//      ceres::Solver::Options options;
+//      options.linear_solver_type = ceres::DENSE_QR;
+//      options.minimizer_progress_to_stdout = false;
+//      options.function_tolerance = 1e-22;
+//      options.num_threads = 2;
+//      ceres::Solver::Summary summary;
+
+//
+//      center_weight = mCenterWeightInitial;
+//      options.max_num_iterations = 40;
+//      ceres::Solve(options, &problem, &summary);
+//
+//      center_weight = mCenterWeightFinal;
+//      options.max_num_iterations = 20;
+//      ceres::Solve(options, &problem, &summary);
+//
+//      PupilParams pupilParams = PupilParams(par(5,0), par(6,0), par(7,0)/2.0);
+//
+//      double cost;
+//      ceres::Problem::EvaluateOptions options_eval;
+//      options_eval.apply_loss_function = false;
+//      std::vector<ceres::ResidualBlockId> single_id;
+//      single_id = {res_id};
+//      options_eval.residual_blocks = single_id;
+//      problem.Evaluate(options_eval, &cost, NULL, NULL, NULL);
+//      return  {pupilParams,cost/sqrt(2*N_+1)};
+//
+//}
 
 
 // GETTER

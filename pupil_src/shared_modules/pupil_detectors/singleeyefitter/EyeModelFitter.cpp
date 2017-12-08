@@ -103,6 +103,18 @@ void EyeModelFitter::setSphereCenter(std::vector<double> center){
 
 };
 
+void EyeModelFitter::setApproximationParameters(std::vector<double> Cp, std::vector<double> Ct, std::vector<double> Cr, std::vector<double> exponents, std::vector<double> constants){
+
+    mCp = Cp;
+    mCt = Ct;
+    mCr = Cr;
+    mExponents = exponents;
+    mConstants = constants;
+
+    mActiveModelPtr->setApproximationParameters(mCp, mCt, mCr, mExponents, mConstants);
+
+};
+
 int EyeModelFitter::relayObservation(std::shared_ptr<Detector2DResult>& observation2D, int prepare_toggle){
 
     if (prepare_toggle){
@@ -421,6 +433,7 @@ void EyeModelFitter::reset()
     mNextModelID = 1;
     mAlternativeModelsPtrs.clear();
     mActiveModelPtr = EyeModelPtr( new EyeModel(mNextModelID , -1, mFocalLength, mCameraCenter ));
+    mActiveModelPtr->setApproximationParameters(mCp, mCt, mCr, mExponents, mConstants);
     mLastTimeModelAdded =  Clock::now();
     mCurrentSphere = Sphere::Null;
     mCurrentInitialSphere = Sphere::Null;

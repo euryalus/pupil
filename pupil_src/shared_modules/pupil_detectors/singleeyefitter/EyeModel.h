@@ -89,6 +89,8 @@ class EyeModel {
         Circle predictSingleObservation(const ObservationPtr);
         void setSphereCenter(std::vector<double>);
         void setFitHyperParameters(int);
+        void setApproximationParameters(std::vector<double>, std::vector<double>, std::vector<double> , std::vector<double> , std::vector<double> );
+
         //
 
         // GETTER
@@ -206,6 +208,11 @@ class EyeModel {
         int mStartRemoveNumber;
         double mCauchyLossScale;
 
+        Eigen::Matrix<double, Eigen::Dynamic, 1> mCp;
+        Eigen::Matrix<double, Eigen::Dynamic, 1> mCt;
+        Eigen::Matrix<double, Eigen::Dynamic, 1> mCr;
+        Eigen::Matrix<int, Eigen::Dynamic, 5> mExponents;
+        Eigen::Matrix<double, Eigen::Dynamic, 1> mConstants;
 
         double mEyeballRadius;
         double mCorneaRadius;

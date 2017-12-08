@@ -44,10 +44,13 @@ namespace singleeyefitter {
             Detector3DResultRefraction optimize_current_model(bool);
             Circle predictSingleObservation(std::shared_ptr<Detector2DResult>&, bool);
             void setSphereCenter(std::vector<double>);
+            void setApproximationParameters(std::vector<double>, std::vector<double>, std::vector<double> , std::vector<double> , std::vector<double> );
             void setFitHyperParameters(int);
 
 
         private:
+
+            std::vector<double> mCp, mCt, mCr, mExponents, mConstants;
 
             const Vector3 mCameraCenter;
             const double mFocalLength;
