@@ -98,7 +98,7 @@ extensions = [
         language="c++"),
      Extension(
         name="pupil_detectors.detector_3d",
-        sources=['detector_3d.pyx','singleeyefitter/ImageProcessing/cvx.cpp','singleeyefitter/utils.cpp','singleeyefitter/detectorUtils.cpp', 'singleeyefitter/EyeModelFitter.cpp','singleeyefitter/EyeModel.cpp'],
+        sources=['detector_3d.pyx','singleeyefitter/ImageProcessing/cvx.cpp','singleeyefitter/utils.cpp','singleeyefitter/detectorUtils.cpp', 'singleeyefitter/EyeModel.cpp'],
         include_dirs = include_dirs,
         libraries = libs,
         library_dirs = library_dirs,

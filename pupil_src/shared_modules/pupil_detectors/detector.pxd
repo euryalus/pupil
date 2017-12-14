@@ -157,7 +157,6 @@ cdef extern from 'common/types.h':
         vector[ModelDebugProperties] models
 
 
-
     cdef struct Detector2DProperties:
         int intensity_range
         int blur_size
@@ -182,7 +181,6 @@ cdef extern from 'common/types.h':
 
 
 
-
 cdef extern from 'detect_2d.hpp':
 
 
@@ -192,10 +190,10 @@ cdef extern from 'detect_2d.hpp':
     shared_ptr[Detector2DResult] detect( Detector2DProperties& prop, Mat& image, Mat& color_image, Mat& debug_image, Rect_[int]& roi, bint visualize , bint use_debug_image )
 
 
-cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
+cdef extern from "singleeyefitter/EyeModel.h" namespace "singleeyefitter":
 
 
-    cdef cppclass EyeModelFitter:
+    cdef cppclass EyeModel:
 
         cppclass PupilParams:
             float theta
@@ -207,22 +205,18 @@ cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
             pair[Circle, Circle] mUnprojectedCirclePair
             Observation( shared_ptr[const Detector2DResult] observation, double focalLength)
 
+        EyeModel(int modelId, double timestamp, double focalLength)
 
-        EyeModelFitter(double focalLength )
+        Detector3DResult predictAndUpdate( shared_ptr[Detector2DResult]& results, const Detector3DProperties& prop, bint fillDebugResult )
 
-        Detector3DResult updateAndDetect( shared_ptr[Detector2DResult]& results, const Detector3DProperties& prop, bint fillDebugResult )
-
-        #funtions for controlled fitting
-        int relayObservation( shared_ptr[Detector2DResult]& results, int prepare_toggle)
-        Detector3DResultRefraction optimize_current_model(bool initialization_toggle)
+        int addObservation(shared_ptr[Detector2DResult]& results, int prepare_toggle)
+        Detector3DResultRefraction optimizeRefraction(bool initialization_toggle)
         void setSphereCenter(vector[double])
         Circle predictSingleObservation(shared_ptr[Detector2DResult]& results, bool prepare)
-        void setFitHyperParameters(int)
-        void setApproximationParameters(vector[double],vector[double],vector[double],vector[double],vector[double])
+        void setApproximationParameters(vector[double], vector[double], vector[double], vector[double], vector[double])
 
         void reset()
         double getFocalLength()
-
 
         double mFocalLength
         Sphere[double] mCurrentSphere

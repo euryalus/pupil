@@ -35,14 +35,13 @@ from libcpp.string cimport string
 cdef class Detector_3D:
 
     cdef Detector2D* detector2DPtr
-    cdef EyeModelFitter *detector3DPtr
+    cdef EyeModel* detector3DPtr
 
     cdef dict detectProperties2D, detectProperties3D
     cdef object menu2D, menu3D
     cdef object gPool
     cdef object debugVisualizer3D
     cdef object pyResult3D
-    cdef string refraction_directory
     cdef readonly object g_pool
     cdef readonly basestring uniqueness
     cdef public object menu
@@ -59,12 +58,11 @@ cdef class Detector_3D:
         [   0.          605.57862234  252.3924477 ]
         [   0.            0.            1.        ]
         '''
-        #region_band_width = 5
-        #region_step_epsilon = 0.5
-        self.detector3DPtr = new EyeModelFitter(focal_length)
+        self.detector3DPtr = new EyeModel(1, -1, focal_length)
 
+        # When the detector is created from within Pupil, we load
+        # the vectors needed for approximate gaze estimation
         if g_pool:
-
             Cp = np.load(g_pool.user_dir+"/Cp.npy")
             Ct = np.load(g_pool.user_dir+"/Ct.npy")
             Cr = np.load(g_pool.user_dir+"/Cr.npy")
@@ -73,8 +71,6 @@ cdef class Detector_3D:
             self.detector3DPtr.setApproximationParameters(Cp, Ct, Cr, exponents, constants)
 
     def __init__(self, g_pool = None, settings = None ):
-
-        #debug window
         self.debugVisualizer3D = Eye_Visualizer(g_pool ,self.detector3DPtr.getFocalLength() )
         self.g_pool = g_pool
         self.uniqueness = 'unique'
@@ -105,17 +101,8 @@ cdef class Detector_3D:
             self.detectProperties2D["final_perimeter_ratio_range_max"] = 1.2
             self.detectProperties2D["ellipse_true_support_min_dist"] = 2.5
 
-
         if not self.detectProperties3D:
-            self.detectProperties3D["model_sensitivity"] = 0.997
-
-        self.refraction_directory = "/home/kd/Desktop/refraction_results_temp"
-
-    def set_refraction_directory(self, dir_):
-        self.refraction_directory = dir_.encode()
-
-    def get_refraction_directory(self):
-        return self.refraction_directory
+            self.detectProperties3D["model_sensitivity"] = 0.9
 
     def get_settings(self):
         return {'2D_Settings': self.detectProperties2D , '3D_Settings' : self.detectProperties3D }
@@ -131,14 +118,90 @@ cdef class Detector_3D:
     def detectProperties2D_setter(self, dict_):
         self.detectProperties2D = dict_
 
-    def detect(self, frame, user_roi, visualize, pause = False ):
+    def detectProperties3D_setter(self, dict_):
+        self.detectProperties3D = dict_
 
+#    cdef detect2D(self, frame, user_roi, visualize):
+#        image_width = frame.width
+#        image_height = frame.height
+#
+#        cdef unsigned char[:,::1] img = frame.gray
+#        cdef Mat cv_image = Mat(image_height, image_width, CV_8UC1, <void *> &img[0,0])
+#
+#        cdef unsigned char[:,:,:] img_color
+#        cdef Mat cv_image_color
+#        cdef Mat debug_image
+#
+#        if visualize:
+#            img_color = frame.img
+#            cv_image_color = Mat(image_height, image_width, CV_8UC3, <void *> &img_color[0,0,0])
+#
+#        roi = Roi((0,0))
+#        roi.set(user_roi.get())
+#        roi_x = roi.get()[0]
+#        roi_y = roi.get()[1]
+#        roi_width  = roi.get()[2] - roi.get()[0]
+#        roi_height = roi.get()[3] - roi.get()[1]
+#        cdef int[:,::1] integral
+#
+#        if self.detectProperties2D['coarse_detection']:
+#            scale = 2 # half the integral image. boost up integral
+#            # TODO maybe implement our own Integral so we don't have to half the image
+#            user_roi_image = frame.gray[user_roi.view]
+#            integral = cv2.integral(user_roi_image[::scale,::scale])
+#            coarse_filter_max = self.detectProperties2D['coarse_filter_max']
+#            coarse_filter_min = self.detectProperties2D['coarse_filter_min']
+#            bounding_box, good_ones, bad_ones = center_surround(integral, coarse_filter_min/scale, coarse_filter_max/scale)
+#
+#            if visualize:
+#                # !! uncomment this to visualize coarse detection
+#                # # Draw the candidates
+#                # for v  in bad_ones:
+#                #     p_x,p_y,w,response = v
+#                #     x = p_x * scale + roi_x
+#                #     y = p_y * scale + roi_y
+#                #     width = w*scale
+#                #     cv2.rectangle( frame.img , (x,y) , (x+width , y+width) , (0,0,255)  )
+#
+#                # Draw the candidates
+#                for v  in good_ones:
+#                    p_x, p_y, w, response = v
+#                    x = p_x * scale + roi_x
+#                    y = p_y * scale + roi_y
+#                    width = w*scale
+#                    cv2.rectangle(frame.img, (x,y), (x+width, y+width), (255,255,0))
+#                    #responseText = '{:2f}'.format(response)
+#                    #cv2.putText(frame.img, responseText,(int(x+width*0.5) , int(y+width*0.5)), cv2.FONT_HERSHEY_PLAIN,0.7,(0,0,255) , 1 )
+#                    #center = (int(x+width*0.5) , int(y+width*0.5))
+#                    #cv2.circle( frame.img , center , 5 , (255,0,255) , -1  )
+#
+#            x1 , y1 , x2, y2 = bounding_box
+#            width = x2 - x1
+#            height = y2 - y1
+#            roi_x = x1 * scale + roi_x
+#            roi_y = y1 * scale + roi_y
+#            roi_width = width*scale
+#            roi_height = height*scale
+#            roi.set((roi_x, roi_y, roi_x+roi_width, roi_y+roi_height))
+#
+#        # All coordinates in the result are relative to the current ROI
+#        # We don't use debug image in 3d model
+#        cdef shared_ptr[Detector2DResult] cpp2DResultPtr =  self.detector2DPtr.detect(self.detectProperties2D,
+#                                                                cv_image,
+#                                                                cv_image_color,
+#                                                                debug_image,
+#                                                                Rect_[int](roi_x, roi_y, roi_width, roi_height),
+#                                                                visualize,
+#                                                                False)
+#
+#        return cpp2DResultPtr
+
+    def detect(self, frame, user_roi, visualize):
         image_width = frame.width
         image_height = frame.height
 
-
         cdef unsigned char[:,::1] img = frame.gray
-        cdef Mat cv_image = Mat(image_height, image_width, CV_8UC1, <void *> &img[0,0] )
+        cdef Mat cv_image = Mat(image_height, image_width, CV_8UC1, <void *> &img[0,0])
 
         cdef unsigned char[:,:,:] img_color
         cdef Mat cv_image_color
@@ -146,15 +209,14 @@ cdef class Detector_3D:
 
         if visualize:
             img_color = frame.img
-            cv_image_color = Mat(image_height, image_width, CV_8UC3, <void *> &img_color[0,0,0] )
-
+            cv_image_color = Mat(image_height, image_width, CV_8UC3, <void *> &img_color[0,0,0])
 
         roi = Roi((0,0))
-        roi.set( user_roi.get() )
+        roi.set(user_roi.get())
         roi_x = roi.get()[0]
         roi_y = roi.get()[1]
         roi_width  = roi.get()[2] - roi.get()[0]
-        roi_height  = roi.get()[3] - roi.get()[1]
+        roi_height = roi.get()[3] - roi.get()[1]
         cdef int[:,::1] integral
 
         if self.detectProperties2D['coarse_detection']:
@@ -164,11 +226,11 @@ cdef class Detector_3D:
             integral = cv2.integral(user_roi_image[::scale,::scale])
             coarse_filter_max = self.detectProperties2D['coarse_filter_max']
             coarse_filter_min = self.detectProperties2D['coarse_filter_min']
-            bounding_box , good_ones , bad_ones = center_surround( integral, coarse_filter_min/scale , coarse_filter_max/scale )
+            bounding_box, good_ones, bad_ones = center_surround(integral, coarse_filter_min/scale, coarse_filter_max/scale)
 
             if visualize:
                 # !! uncomment this to visualize coarse detection
-                #  # draw the candidates
+                # # Draw the candidates
                 # for v  in bad_ones:
                 #     p_x,p_y,w,response = v
                 #     x = p_x * scale + roi_x
@@ -176,19 +238,17 @@ cdef class Detector_3D:
                 #     width = w*scale
                 #     cv2.rectangle( frame.img , (x,y) , (x+width , y+width) , (0,0,255)  )
 
-                # # draw the candidates
+                # Draw the candidates
                 for v  in good_ones:
-                    p_x,p_y,w,response = v
+                    p_x, p_y, w, response = v
                     x = p_x * scale + roi_x
                     y = p_y * scale + roi_y
                     width = w*scale
-                    cv2.rectangle( frame.img , (x,y) , (x+width , y+width) , (255,255,0)  )
+                    cv2.rectangle(frame.img, (x,y), (x+width, y+width), (255,255,0))
                     #responseText = '{:2f}'.format(response)
                     #cv2.putText(frame.img, responseText,(int(x+width*0.5) , int(y+width*0.5)), cv2.FONT_HERSHEY_PLAIN,0.7,(0,0,255) , 1 )
-
                     #center = (int(x+width*0.5) , int(y+width*0.5))
                     #cv2.circle( frame.img , center , 5 , (255,0,255) , -1  )
-
 
             x1 , y1 , x2, y2 = bounding_box
             width = x2 - x1
@@ -199,43 +259,42 @@ cdef class Detector_3D:
             roi_height = height*scale
             roi.set((roi_x, roi_y, roi_x+roi_width, roi_y+roi_height))
 
-        # every coordinates in the result are relative to the current ROI
-        cpp2DResultPtr =  self.detector2DPtr.detect(self.detectProperties2D, cv_image, cv_image_color, debug_image, Rect_[int](roi_x,roi_y,roi_width,roi_height), visualize , False ) #we don't use debug image in 3d model
+        # All coordinates in the result are relative to the current ROI
+        # We don't use debug image in 3d model
+        cpp2DResultPtr =  self.detector2DPtr.detect(self.detectProperties2D,
+                                                                cv_image,
+                                                                cv_image_color,
+                                                                debug_image,
+                                                                Rect_[int](roi_x, roi_y, roi_width, roi_height),
+                                                                visualize,
+                                                                False)        # The timestamp is not set elsewhere but it is needed in detector3D
+        deref(cpp2DResultPtr).timestamp = frame.timestamp
 
-        deref(cpp2DResultPtr).timestamp = frame.timestamp #timestamp doesn't get set elsewhere and it is needt in detector3D
+        # 3D model part
+        debugDetector = self.debugVisualizer3D.window
+        cdef Detector3DResult cpp3DResult  = self.detector3DPtr.predictAndUpdate(cpp2DResultPtr, self.detectProperties3D, debugDetector)
 
-        ######### 3D Model Part ############
-        debugDetector =  self.debugVisualizer3D.window
-        cdef Detector3DResult cpp3DResult  = self.detector3DPtr.updateAndDetect( cpp2DResultPtr , self.detectProperties3D, True) #debugDetector)
-
-        pyResult = convertTo3DPythonResult(cpp3DResult,frame)
-
-        #FOR HEADLESS EXPERIMENTS
-        #self.pyResult3D = prepareForVisualization3D(cpp3DResult)
-        #self.debugVisualizer3D.write_result(self.pyResult3D, self.refraction_directory)
+        pyResult = convertTo3DPythonResult(cpp3DResult, frame)
 
         if debugDetector:
            self.pyResult3D = prepareForVisualization3D(cpp3DResult)
 
         return pyResult
 
-    def run_optimization_on_current_model(self, initialization_toggle=True):
-        result = self.detector3DPtr.optimize_current_model(initialization_toggle)
+    def optimize(self, initialization_toggle=True):
+        result = self.detector3DPtr.optimizeRefraction(initialization_toggle)
         pyResult = convertTo3DPythonRefractionResult(result)
         return pyResult
 
-    def set_sphere_center(self,center):
+    def set_sphere_center(self, center):
         self.detector3DPtr.setSphereCenter(center)
 
-    def setFitHyperParameters(self, EdgeNumber):
-        self.detector3DPtr.setFitHyperParameters(EdgeNumber)
-
-    def predict_single_frame(self, frame, user_roi, visualize, pause = False ):
+    def predict(self, frame, user_roi, visualize):
         image_width = frame.width
         image_height = frame.height
 
         cdef unsigned char[:,::1] img = frame.gray
-        cdef Mat cv_image = Mat( image_height, image_width, CV_8UC1, <void *> &img[0,0] )
+        cdef Mat cv_image = Mat(image_height, image_width, CV_8UC1, <void *> &img[0,0])
 
         cdef unsigned char[:,:,:] img_color
         cdef Mat cv_image_color
@@ -243,14 +302,14 @@ cdef class Detector_3D:
 
         if visualize:
             img_color = frame.img
-            cv_image_color = Mat( image_height, image_width, CV_8UC3, <void *> &img_color[0,0,0] )
+            cv_image_color = Mat(image_height, image_width, CV_8UC3, <void *> &img_color[0,0,0])
 
         roi = Roi((0,0))
         roi.set(user_roi.get())
         roi_x = roi.get()[0]
         roi_y = roi.get()[1]
         roi_width  = roi.get()[2] - roi.get()[0]
-        roi_height  = roi.get()[3] - roi.get()[1]
+        roi_height = roi.get()[3] - roi.get()[1]
         cdef int[:,::1] integral
 
         if self.detectProperties2D['coarse_detection']:
@@ -260,11 +319,11 @@ cdef class Detector_3D:
             integral = cv2.integral(user_roi_image[::scale,::scale])
             coarse_filter_max = self.detectProperties2D['coarse_filter_max']
             coarse_filter_min = self.detectProperties2D['coarse_filter_min']
-            bounding_box , good_ones , bad_ones = center_surround( integral, coarse_filter_min/scale , coarse_filter_max/scale )
+            bounding_box, good_ones, bad_ones = center_surround(integral, coarse_filter_min/scale, coarse_filter_max/scale)
 
             if visualize:
                 # !! uncomment this to visualize coarse detection
-                #  # draw the candidates
+                # # Draw the candidates
                 # for v  in bad_ones:
                 #     p_x,p_y,w,response = v
                 #     x = p_x * scale + roi_x
@@ -272,16 +331,15 @@ cdef class Detector_3D:
                 #     width = w*scale
                 #     cv2.rectangle( frame.img , (x,y) , (x+width , y+width) , (0,0,255)  )
 
-                # # draw the candidates
+                # Draw the candidates
                 for v  in good_ones:
-                    p_x,p_y,w,response = v
+                    p_x, p_y, w, response = v
                     x = p_x * scale + roi_x
                     y = p_y * scale + roi_y
                     width = w*scale
-                    cv2.rectangle( frame.img , (x,y) , (x+width , y+width) , (255,255,0)  )
+                    cv2.rectangle(frame.img, (x,y), (x+width, y+width), (255,255,0))
                     #responseText = '{:2f}'.format(response)
                     #cv2.putText(frame.img, responseText,(int(x+width*0.5) , int(y+width*0.5)), cv2.FONT_HERSHEY_PLAIN,0.7,(0,0,255) , 1 )
-
                     #center = (int(x+width*0.5) , int(y+width*0.5))
                     #cv2.circle( frame.img , center , 5 , (255,0,255) , -1  )
 
@@ -294,11 +352,19 @@ cdef class Detector_3D:
             roi_height = height*scale
             roi.set((roi_x, roi_y, roi_x+roi_width, roi_y+roi_height))
 
-        # every coordinates in the result are relative to the current ROI
-        cpp2DResultPtr =  self.detector2DPtr.detect(self.detectProperties2D, cv_image, cv_image_color, debug_image, Rect_[int](roi_x,roi_y,roi_width,roi_height), visualize , False ) #we don't use debug image in 3d model
-        deref(cpp2DResultPtr).timestamp = frame.timestamp #timestamp doesn't get set elsewhere and it is needt in detector3D
+        # All coordinates in the result are relative to the current ROI
+        # We don't use debug image in 3d model
+        cpp2DResultPtr =  self.detector2DPtr.detect(self.detectProperties2D,
+                                                                cv_image,
+                                                                cv_image_color,
+                                                                debug_image,
+                                                                Rect_[int](roi_x, roi_y, roi_width, roi_height),
+                                                                visualize,
+                                                                False)        # The timestamp is not set elsewhere but it is needed in detector3D
+        deref(cpp2DResultPtr).timestamp = frame.timestamp
 
-        prediction = self.detector3DPtr.predictSingleObservation(cpp2DResultPtr,1)
+        prediction = self.detector3DPtr.predictSingleObservation(cpp2DResultPtr, 1)
+
         pupil = {}
         pupil['center'] = [prediction.center[0],prediction.center[1],prediction.center[2]]
         pupil['normal'] = [prediction.normal[0],prediction.normal[1],prediction.normal[2]]
@@ -306,54 +372,12 @@ cdef class Detector_3D:
 
         return pupil
 
-    def detect_single_frame_from_dict(self, dict_):
-        cdef Detector2DResult test
-        cdef shared_ptr[Detector2DResult] test_ptr = make_shared[Detector2DResult](test)
-        deref(test_ptr).image_width = 640
-        deref(test_ptr).image_height = 480
-        x, y, major, minor, angle = dict_['ellipse']
-        deref(test_ptr).ellipse = Ellipse(x, y, major, minor, angle)
-        deref(test_ptr).final_edges = Edges2D()
-        cdef Point_[int] p = Point_[int]()
-        for pp in dict_['edges']:
-            p.x = pp[0]
-            p.y = pp[1]
-            deref(test_ptr).final_edges.push_back(p)
-        deref(test_ptr).confidence = 1.0
-        deref(test_ptr).timestamp = 0.0
-
-        prediction = self.detector3DPtr.predictSingleObservation(test_ptr,0)
-        pupil = {}
-        pupil['center'] = [prediction.center[0],prediction.center[1],prediction.center[2]]
-        pupil['normal'] = [prediction.normal[0],prediction.normal[1],prediction.normal[2]]
-        pupil['radius'] = prediction.radius
-        return pupil
-
-    def make_Detector2DResult_result_from_dict(self, dict_):
-        cdef Detector2DResult test
-        cdef shared_ptr[Detector2DResult] test_ptr = make_shared[Detector2DResult](test)
-        deref(test_ptr).final_edges = Edges2D()
-        cdef Point_[int] p = Point_[int]()
-        for pp in dict_['edges']:
-            p.x = pp[0]
-            p.y = pp[1]
-            deref(test_ptr).final_edges.push_back(p)
-        deref(test_ptr).confidence = 1.0
-        deref(test_ptr).timestamp = 0.0
-        x, y, major, minor, angle = dict_['ellipse']
-        deref(test_ptr).ellipse = Ellipse(x, y, major, minor, angle)
-        deref(test_ptr).image_width = 640
-        deref(test_ptr).image_height = 480
-        self.detector3DPtr.relayObservation(test_ptr, 0)
-
-
-    def detect2D_and_relay_observation(self, frame, user_roi, visualize, pause = False ):
-
+    def add_observation(self, frame, user_roi, visualize):
         image_width = frame.width
         image_height = frame.height
 
         cdef unsigned char[:,::1] img = frame.gray
-        cdef Mat cv_image = Mat(image_height, image_width, CV_8UC1, <void *> &img[0,0] )
+        cdef Mat cv_image = Mat(image_height, image_width, CV_8UC1, <void *> &img[0,0])
 
         cdef unsigned char[:,:,:] img_color
         cdef Mat cv_image_color
@@ -361,14 +385,14 @@ cdef class Detector_3D:
 
         if visualize:
             img_color = frame.img
-            cv_image_color = Mat(image_height, image_width, CV_8UC3, <void *> &img_color[0,0,0] )
+            cv_image_color = Mat(image_height, image_width, CV_8UC3, <void *> &img_color[0,0,0])
 
         roi = Roi((0,0))
         roi.set(user_roi.get())
         roi_x = roi.get()[0]
         roi_y = roi.get()[1]
         roi_width  = roi.get()[2] - roi.get()[0]
-        roi_height  = roi.get()[3] - roi.get()[1]
+        roi_height = roi.get()[3] - roi.get()[1]
         cdef int[:,::1] integral
 
         if self.detectProperties2D['coarse_detection']:
@@ -378,11 +402,11 @@ cdef class Detector_3D:
             integral = cv2.integral(user_roi_image[::scale,::scale])
             coarse_filter_max = self.detectProperties2D['coarse_filter_max']
             coarse_filter_min = self.detectProperties2D['coarse_filter_min']
-            bounding_box , good_ones , bad_ones = center_surround( integral, coarse_filter_min/scale , coarse_filter_max/scale )
+            bounding_box, good_ones, bad_ones = center_surround(integral, coarse_filter_min/scale, coarse_filter_max/scale)
 
             if visualize:
                 # !! uncomment this to visualize coarse detection
-                #  # draw the candidates
+                # # Draw the candidates
                 # for v  in bad_ones:
                 #     p_x,p_y,w,response = v
                 #     x = p_x * scale + roi_x
@@ -390,16 +414,15 @@ cdef class Detector_3D:
                 #     width = w*scale
                 #     cv2.rectangle( frame.img , (x,y) , (x+width , y+width) , (0,0,255)  )
 
-                # # draw the candidates
+                # Draw the candidates
                 for v  in good_ones:
-                    p_x,p_y,w,response = v
+                    p_x, p_y, w, response = v
                     x = p_x * scale + roi_x
                     y = p_y * scale + roi_y
                     width = w*scale
-                    cv2.rectangle( frame.img , (x,y) , (x+width , y+width) , (255,255,0)  )
+                    cv2.rectangle(frame.img, (x,y), (x+width, y+width), (255,255,0))
                     #responseText = '{:2f}'.format(response)
                     #cv2.putText(frame.img, responseText,(int(x+width*0.5) , int(y+width*0.5)), cv2.FONT_HERSHEY_PLAIN,0.7,(0,0,255) , 1 )
-
                     #center = (int(x+width*0.5) , int(y+width*0.5))
                     #cv2.circle( frame.img , center , 5 , (255,0,255) , -1  )
 
@@ -412,11 +435,21 @@ cdef class Detector_3D:
             roi_height = height*scale
             roi.set((roi_x, roi_y, roi_x+roi_width, roi_y+roi_height))
 
-        # every coordinates in the result are relative to the current ROI
-        cpp2DResultPtr =  self.detector2DPtr.detect(self.detectProperties2D, cv_image, cv_image_color, debug_image, Rect_[int](roi_x,roi_y,roi_width,roi_height), visualize , False ) #we don't use debug image in 3d model
-        deref(cpp2DResultPtr).timestamp = frame.timestamp #timestamp doesn't get set elsewhere and it is needt in detector3D
+        # All coordinates in the result are relative to the current ROI
+        # We don't use debug image in 3d model
+        cpp2DResultPtr =  self.detector2DPtr.detect(self.detectProperties2D,
+                                                                cv_image,
+                                                                cv_image_color,
+                                                                debug_image,
+                                                                Rect_[int](roi_x, roi_y, roi_width, roi_height),
+                                                                visualize,
+                                                                False)        # The timestamp is not set elsewhere but it is needed in detector3D
+        deref(cpp2DResultPtr).timestamp = frame.timestamp
 
-        return self.detector3DPtr.relayObservation(cpp2DResultPtr, 1)
+        return self.detector3DPtr.addObservation(cpp2DResultPtr, 1)
+
+    def reset_3D_Model(self):
+         self.detector3DPtr.reset()
 
     def cleanup(self):
         self.debugVisualizer3D.close_window() # if we change detectors, be sure debug window is also closed
@@ -429,8 +462,8 @@ cdef class Detector_3D:
         Plugin.add_menu(self)
         self.menu.label = 'Pupil Detector 3D'
         info = ui.Info_Text("Switch to the algorithm display mode to see a visualization of pupil detection parameters overlaid on the eye video. "\
-                                +"Adjust the pupil intensity range so that the pupil is fully overlaid with blue. "\
-                                +"Adjust the pupil min and pupil max ranges (red circles) so that the detected pupil size (green circle) is within the bounds.")
+                           +"Adjust the pupil intensity range so that the pupil is fully overlaid with blue. "\
+                           +"Adjust the pupil min and pupil max ranges (red circles) so that the detected pupil size (green circle) is within the bounds.")
         self.menu.append(info)
         #self.menu.append(ui.Switch('coarse_detection',self.detectProperties2D,label='Use coarse detection'))
         self.menu.append(ui.Slider('intensity_range',self.detectProperties2D,label='Pupil intensity range',min=0,max=60,step=1))
@@ -459,9 +492,6 @@ cdef class Detector_3D:
     def deinit_ui(self):
         Plugin.remove_menu(self)
 
-    def reset_3D_Model(self):
-         self.detector3DPtr.reset()
-
     def toggle_window(self):
         if not self.debugVisualizer3D.window:
             self.debugVisualizer3D.open_window()
@@ -470,4 +500,4 @@ cdef class Detector_3D:
 
     def visualize(self):
         if self.debugVisualizer3D.window:
-            self.debugVisualizer3D.update_window( self.g_pool, self.pyResult3D  )
+            self.debugVisualizer3D.update_window(self.g_pool, self.pyResult3D)

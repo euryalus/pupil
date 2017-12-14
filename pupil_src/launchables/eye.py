@@ -581,6 +581,7 @@ def eye(timebase, is_alive_flag, ipc_pub_url, ipc_sub_url, ipc_push_url,
                                 draw_polyline(pts, 2, RGBA(0., .9, .1, result['model_confidence']))
                         if result['confidence'] > 0:
                             if 'ellipse' in result:
+                                print(result['ellipse']['center'][0])
                                 pts = cv2.ellipse2Poly(
                                     (int(result['ellipse']['center'][0]),
                                      int(result['ellipse']['center'][1])),

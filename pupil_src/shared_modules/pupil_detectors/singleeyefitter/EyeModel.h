@@ -75,42 +75,39 @@ class EyeModel {
     public:
 
         // CONSTRUCTORS
-        EyeModel( int modelId, double timestamp,  double focalLength, Vector3 cameraCenter, int initialUncheckedPupils = 5, double binResolution = 0.05  );
+        EyeModel(int modelId, double timestamp, double focalLength, Vector3 cameraCenter = Vector3::Zero(), int initialUncheckedPupils = 5, double binResolution = 0.05);
         EyeModel(const EyeModel&) = delete;
-        //EyeModel(EyeModel&&); // we need a explicit 1/Move constructor because of the mutex
         ~EyeModel();
 
         // DOOR TO THE OUTER WORLD
-        std::pair<Circle, double> presentObservation(const ObservationPtr observation, double averageFramerate  );
+        Detector3DResult predictAndUpdate(std::shared_ptr<Detector2DResult>&, const Detector3DProperties&, bool);
+        std::pair<Circle, double> presentObservation(const ObservationPtr, double averageFramerate);
 
         // FOR CONTROLLED FITTING
-        int addObservation(const ObservationPtr);
-        Detector3DResultRefraction run_optimization(bool);
-        Circle predictSingleObservation(const ObservationPtr);
+        int addObservation(std::shared_ptr<Detector2DResult>&, int);
+        Detector3DResultRefraction optimizeRefraction(bool);
+        Circle predictSingleObservation(std::shared_ptr<Detector2DResult>&, bool);
         void setSphereCenter(std::vector<double>);
-        void setFitHyperParameters(int);
         void setApproximationParameters(std::vector<double>, std::vector<double>, std::vector<double> , std::vector<double> , std::vector<double> );
+        void reset();
 
-        //
 
-        // GETTER
+
+        // Getter
+        Sphere mCurrentSphere;
+        Sphere mCurrentInitialSphere;
+
         Sphere getSphere() const;
         Sphere getInitialSphere() const;
-
-        // Describing how good different properties of the Eye are
-        double getMaturity() const ; // How much spatial variance there is
-        double getConfidence() const; // How much do we believe in this model
-        double getPerformance() const; // How much do we believe in this model
-        double getPerformanceGradient() const;
-        double getSolverFit() const ; // The residual of the sphere calculation
         std::vector<double> getOptimizedParameters() const;
         std::vector<double> getCostPerPupil() const;
         std::vector<double> getResFit() const;
         int getNumResidualBlocks() const;
         Detector3DResultRefraction getRefractionResult() const;
+        double getFocalLength(){ return mFocalLength; };
 
-        int getModelID() const { return mModelID; };
-        double getBirthTimestamp() const { return mBirthTimestamp; };
+        int getModelID() const {return mModelID;};
+        double getBirthTimestamp() const {return mBirthTimestamp;};
 
         // ----- Visualization --------
         std::vector<Vector3> getBinPositions() const {return mBinPositions;};
@@ -154,21 +151,25 @@ class EyeModel {
 
         Sphere findSphereCenter( bool use_ransac = true);
         Sphere initialiseModel();
-        double refineWithEdges( Sphere& sphere  );
+        double refineWithEdgesRefraction(Sphere& sphere);
         bool tryTransferNewObservations();
 
 
         ConfidenceValue calculateModelOberservationFit(const Circle&  unprojectedCircle, const Circle& initialisedCircle, double confidence) const;
-        void updatePerformance( const ConfidenceValue& observation_fit,  double averageFramerate);
+        void updatePerformance( const ConfidenceValue& observation_fit, double averageFramerate);
 
         double calculateModelFit(const Circle&  unprojectedCircle, const Circle& optimizedCircle) const;
         bool isSpatialRelevant(const Circle& circle);
 
         const Circle& selectUnprojectedCircle(const Sphere& sphere, const std::pair<const Circle, const Circle>& circles) const;
-        void initialiseSingleObservation( const Sphere& sphere, Pupil& pupil) const;
-        Circle getIntersectedCircle( const Sphere& sphere, const Circle& circle) const;
-        Circle getInitialCircle( const Sphere& sphere, const Circle& circle ) const;
-        std::pair<PupilParams, double> getRefractedCircle( const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation ) const;
+        void initialiseSingleObservation(const Sphere& sphere, Pupil& pupil) const;
+        Circle getIntersectedCircle(const Sphere& sphere, const Circle& circle) const;
+        Circle getInitialCircle(const Sphere& sphere, const Circle& circle) const;
+
+        // Predictors
+        std::pair<PupilParams, double> predictFullOptimization( const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation ) const;
+        std::pair<PupilParams, double> predictApproximate(const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation) const;
+        std::pair<PupilParams, double> predictSwirksi(const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation) const;
 
         //Circle circleFromParams( CircleParams& params) const;
         Circle circleFromParams(const Sphere& eye,const  PupilParams& params) const;
@@ -198,6 +199,11 @@ class EyeModel {
         const int mModelID;
         double mBirthTimestamp;
 
+        bool mDebug;
+        double mApproximatedFramerate;
+        double mAverageFramerate;
+        double mLastFrameTimestamp = 0;
+
         double mEdgeNumber; //Number of edges per pupil used during optimization
         double mStrikes;
         double mCenterWeightInitial;
@@ -225,6 +231,7 @@ class EyeModel {
         std::vector<double> mOptimizedParams;
         void removePupilFromOptimization(std::vector<Pupil>::iterator iter);
 
+        Eigen::Matrix<double,3,3> correction_matrix(Eigen::Matrix<double,3,1> v1, Eigen::Matrix<double,3,1> v2, double theta) const;
 
         Sphere mSphere;                       // Thread sensitive
         Sphere mInitialSphere;                // Thread sensitive
