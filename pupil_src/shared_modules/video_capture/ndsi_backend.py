@@ -19,7 +19,7 @@ from camera_models import load_intrinsics
 
 try:
     from ndsi import __version__
-    assert __version__ >= '0.3.2'
+    assert __version__ >= '0.3.3'
     from ndsi import __protocol_version__
 except (ImportError, AssertionError):
     raise Exception("pyndsi version is to old. Please upgrade")
@@ -48,7 +48,6 @@ class NDSI_Source(Base_Source):
         self.ghost_mode_timeout = 10  # sec
         self._initial_refresh = True
         self.last_update = self.g_pool.get_timestamp()
-        self._intrinsics = None
 
         if not network:
             logger.debug('No network reference provided. Capture is started '
@@ -189,6 +188,10 @@ class NDSI_Source(Base_Source):
         if self._intrinsics is None or self._intrinsics.resolution != self.frame_size:
             self._intrinsics = load_intrinsics(self.g_pool.user_dir, self.name, self.frame_size)
         return self._intrinsics
+
+    @intrinsics.setter
+    def intrinsics(self, model):
+        self._intrinsics = model
 
     @property
     def frame_size(self):

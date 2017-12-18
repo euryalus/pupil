@@ -17,7 +17,7 @@ if platform.system() == 'Darwin':
                  pathex=['../../pupil_src/shared_modules/'],
                  hiddenimports=[]+av_hidden_imports+pyglui_hidden_imports,
                  hookspath=None,
-                 runtime_hooks=['../rthook_multiprocessing.py'],
+                 runtime_hooks=None,
                  excludes=['matplotlib','pyrealsense'])
     pyz = PYZ(a.pure)
     exe = EXE(pyz,
@@ -60,7 +60,7 @@ elif platform.system() == 'Linux':
                  hiddenimports=[]+av_hidden_imports+pyglui_hidden_imports,
                  hookspath=None,
                  runtime_hooks=None,
-                 excludes=['matplotlib'])
+                 excludes=['matplotlib','pyrealsense'])
 
     pyz = PYZ(a.pure)
     exe = EXE(pyz,
@@ -81,6 +81,9 @@ elif platform.system() == 'Linux':
 
     # required for 14.04 16.04 interoperability.
     binaries = [b for b in binaries if not "libgomp.so.1" in b[0]]
+
+    # required for 17.10 interoperability.
+    binaries = [b for b in binaries if not "libdrm.so.2" in b[0]]
 
     coll = COLLECT(exe,
                    binaries,
@@ -137,7 +140,7 @@ elif platform.system() == 'Windows':
                      runtime_hooks=None,
                      win_no_prefer_redirects=False,
                      win_private_assemblies=False,
-                     excludes=['matplotlib'])
+                     excludes=['matplotlib','pyrealsense'])
 
 
         pyz = PYZ(a.pure)

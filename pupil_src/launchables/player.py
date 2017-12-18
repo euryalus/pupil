@@ -8,7 +8,6 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 '''
-import sys
 import os
 import platform
 
@@ -69,10 +68,10 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
         from pyglui import __version__ as pyglui_version
 
         from pyglui import ui, cygl
-        from pyglui.cygl.utils import Named_Texture
+        from pyglui.cygl.utils import Named_Texture, RGBA
         import gl_utils
         # capture
-        from video_capture import File_Source, EndofVideoFileError, FileSeekError
+        from video_capture import File_Source, EndofVideoFileError
 
         # helpers/utils
         from version_utils import VersionFormat
@@ -93,9 +92,9 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
         from seek_control import Seek_Control
         from video_export_launcher import Video_Export_Launcher
         from offline_surface_tracker import Offline_Surface_Tracker
-        from marker_auto_trim_marks import Marker_Auto_Trim_Marks
+        # from marker_auto_trim_marks import Marker_Auto_Trim_Marks
         from fixation_detector import Offline_Fixation_Detector
-        from batch_exporter import Batch_Exporter
+        from batch_exporter import Batch_Exporter, Batch_Export
         from log_display import Log_Display
         from annotations import Annotation_Player
         from raw_data_exporter import Raw_Data_Exporter
@@ -104,15 +103,15 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
         from gaze_producers import Gaze_From_Recording, Offline_Calibration
         from system_graphs import System_Graphs
 
-        assert pyglui_version >= '1.8', 'pyglui out of date, please upgrade to newest version'
+        assert VersionFormat(pyglui_version) >= VersionFormat('1.11'), 'pyglui out of date, please upgrade to newest version'
 
         runtime_plugins = import_runtime_plugins(os.path.join(user_dir, 'plugins'))
-        system_plugins = [Log_Display, Seek_Control, Plugin_Manager, System_Graphs]
+        system_plugins = [Log_Display, Seek_Control, Plugin_Manager, System_Graphs, Batch_Export]
         user_plugins = [Vis_Circle, Vis_Fixation, Vis_Polyline, Vis_Light_Points,
                         Vis_Cross, Vis_Watermark, Vis_Eye_Video_Overlay, Vis_Scan_Path,
-                        Offline_Fixation_Detector,
+                        Offline_Fixation_Detector, Batch_Exporter,
                         Video_Export_Launcher, Offline_Surface_Tracker, Raw_Data_Exporter,
-                        Batch_Exporter, Annotation_Player, Log_History, Marker_Auto_Trim_Marks,
+                        Annotation_Player, Log_History,
                         Pupil_From_Recording, Offline_Pupil_Detection, Gaze_From_Recording,
                         Offline_Calibration] + runtime_plugins
 
@@ -121,16 +120,16 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
         # Callback functions
         def on_resize(window, w, h):
             nonlocal window_size
+            nonlocal hdpi_factor
 
-            if gl_utils.is_window_visible(window):
-                hdpi_factor = float(glfw.glfwGetFramebufferSize(window)[0] / glfw.glfwGetWindowSize(window)[0])
-                g_pool.gui.scale = g_pool.gui_user_scale * hdpi_factor
-                window_size = w, h
-                g_pool.camera_render_size = w-int(icon_bar_width*g_pool.gui.scale), h
-                g_pool.gui.update_window(*window_size)
-                g_pool.gui.collect_menus()
-                for p in g_pool.plugins:
-                    p.on_window_resize(window, *g_pool.camera_render_size)
+            hdpi_factor = float(glfw.glfwGetFramebufferSize(window)[0] / glfw.glfwGetWindowSize(window)[0])
+            g_pool.gui.scale = g_pool.gui_user_scale * hdpi_factor
+            window_size = w, h
+            g_pool.camera_render_size = w-int(icon_bar_width*g_pool.gui.scale), h
+            g_pool.gui.update_window(*window_size)
+            g_pool.gui.collect_menus()
+            for p in g_pool.plugins:
+                p.on_window_resize(window, *g_pool.camera_render_size)
 
         def on_window_key(window, key, scancode, action, mods):
             g_pool.gui.update_key(key, scancode, action, mods)
@@ -142,7 +141,6 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
             g_pool.gui.update_button(button, action, mods)
 
         def on_pos(window, x, y):
-            hdpi_factor = float(glfw.glfwGetFramebufferSize(window)[0]/glfw.glfwGetWindowSize(window)[0])
             x, y = x * hdpi_factor, y * hdpi_factor
             g_pool.gui.update_mouse(x, y)
             pos = x, y
@@ -182,6 +180,7 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
 
         icon_bar_width = 50
         window_size = None
+        hdpi_factor = 1.0
 
         # create container for globally scoped vars
         g_pool = Global_Container()
@@ -214,8 +213,6 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
         g_pool.main_window = main_window
 
         def set_scale(new_scale):
-            hdpi_factor = float(glfw.glfwGetFramebufferSize(
-                main_window)[0]) / glfw.glfwGetWindowSize(main_window)[0]
             g_pool.gui_user_scale = new_scale
             window_size = (g_pool.camera_render_size[0] + int(icon_bar_width*g_pool.gui_user_scale*hdpi_factor),
                            glfw.glfwGetFramebufferSize(main_window)[1])
@@ -243,27 +240,27 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
         g_pool.gaze_positions_by_frame = [[] for x in g_pool.timestamps]  # populated by producer
         g_pool.fixations_by_frame = [[] for x in g_pool.timestamps]  # populated by the fixation detector plugin
 
-        def next_frame(_):
-            try:
-                g_pool.capture.seek_to_frame(g_pool.capture.get_frame_index() + 1)
-            except(FileSeekError):
-                logger.warning("Could not seek to next frame.")
-            else:
-                g_pool.new_seek = True
+        # def next_frame(_):
+        #     try:
+        #         g_pool.capture.seek_to_frame(g_pool.capture.get_frame_index() + 1)
+        #     except(FileSeekError):
+        #         logger.warning("Could not seek to next frame.")
+        #     else:
+        #         g_pool.new_seek = True
 
-        def prev_frame(_):
-            try:
-                g_pool.capture.seek_to_frame(g_pool.capture.get_frame_index() - 1)
-            except(FileSeekError):
-                logger.warning("Could not seek to previous frame.")
-            else:
-                g_pool.new_seek = True
+        # def prev_frame(_):
+        #     try:
+        #         g_pool.capture.seek_to_frame(g_pool.capture.get_frame_index() - 1)
+        #     except(FileSeekError):
+        #         logger.warning("Could not seek to previous frame.")
+        #     else:
+        #         g_pool.new_seek = True
 
-        def toggle_play(new_state):
-            if g_pool.capture.get_frame_index() >= g_pool.capture.get_frame_count()-5:
-                g_pool.capture.seek_to_frame(1)  # avoid pause set by hitting trimmark pause.
-                logger.warning("End of video - restart at beginning.")
-            g_pool.capture.play = new_state
+        # def toggle_play(new_state):
+        #     if g_pool.capture.get_frame_index() >= g_pool.capture.get_frame_count()-5:
+        #         g_pool.capture.seek_to_frame(1)  # avoid pause set by hitting trimmark pause.
+        #         logger.warning("End of video - restart at beginning.")
+        #     g_pool.capture.play = new_state
 
         def set_data_confidence(new_confidence):
             g_pool.min_data_confidence = new_confidence
@@ -307,7 +304,7 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
             ipc_pub.notify({'subject': 'player_process.should_start', 'rec_dir': rec_dir, 'delay': 2.})
 
         def toggle_general_settings(collapsed):
-            #this is the menu toggle logic.
+            # this is the menu toggle logic.
             # Only one menu can be open.
             # If no menu is open the menubar should collapse.
             g_pool.menubar.collapsed = collapsed
@@ -321,6 +318,14 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
         g_pool.iconbar = ui.Scrolling_Menu("Icons", pos=(-icon_bar_width,0),size=(0,0),header_pos='hidden')
         g_pool.timelines = ui.Container((0, 0), (0, 0), (0, 0))
         g_pool.timelines.horizontal_constraint = g_pool.menubar
+        g_pool.user_timelines = ui.Timeline_Menu('User Timelines', pos=(0., -150.),
+                                                 size=(0., 0.), header_pos='headline')
+        g_pool.user_timelines.color = RGBA(a=0.)
+        g_pool.user_timelines.collapsed = True
+        # add container that constaints itself to the seekbar height
+        vert_constr = ui.Container((0, 0), (0, -50.), (0, 0))
+        vert_constr.append(g_pool.user_timelines)
+        g_pool.timelines.append(vert_constr)
 
         general_settings = ui.Growing_Menu('General', header_pos='headline')
         general_settings.append(ui.Button('Reset window size',
@@ -342,33 +347,14 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
         user_plugin_separator.order = 0.35
         g_pool.iconbar.append(user_plugin_separator)
 
-        g_pool.quickbar = ui.Stretching_Menu('Quick Bar', (0, 100), (120, -100))
-        g_pool.capture.play_button = ui.Thumb('play',
-                                      g_pool.capture,
-                                      label=chr(0xE037),
-                                      setter=toggle_play,
-                                      hotkey=glfw.GLFW_KEY_SPACE,
-                                      label_font='pupil_icons')
-        g_pool.capture.play_button.on_color[:] = (0.5, 0.8, 0.75,.9)
-        g_pool.forward_button = ui.Thumb('forward',
-                                         label=chr(0xE01F),
-                                         getter=lambda: False,
-                                         setter=next_frame,
-                                         hotkey=glfw.GLFW_KEY_RIGHT,
-                                         label_font='pupil_icons')
-        g_pool.backward_button = ui.Thumb('backward',
-                                          label=chr(0xE020),
-                                          getter=lambda: False,
-                                          setter=prev_frame,
-                                          hotkey=glfw.GLFW_KEY_LEFT,
-                                          label_font='pupil_icons')
+        g_pool.quickbar = ui.Stretching_Menu('Quick Bar', (0, 100), (100, -100))
         g_pool.export_button = ui.Thumb('export',
                                         label=chr(0xe2c4),
                                         getter=lambda: False,
                                         setter=do_export,
                                         hotkey='e',
                                         label_font='pupil_icons')
-        g_pool.quickbar.extend([g_pool.capture.play_button, g_pool.forward_button, g_pool.backward_button, g_pool.export_button])
+        g_pool.quickbar.extend([g_pool.export_button])
         g_pool.gui.append(g_pool.menubar)
         g_pool.gui.append(g_pool.timelines)
         g_pool.gui.append(g_pool.iconbar)
@@ -443,9 +429,10 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
             events['frame'] = frame
             # report time between now and the last loop interation
             events['dt'] = get_dt()
-            # new positons we make a deepcopy just like the image is a copy.
-            events['gaze_positions'] = deepcopy(g_pool.gaze_positions_by_frame[frame.index])
-            events['pupil_positions'] = deepcopy(g_pool.pupil_positions_by_frame[frame.index])
+
+            # pupil and gaze positions are added by their respective producer plugins
+            events['pupil_positions'] = []
+            events['gaze_positions'] = []
 
             # allow each Plugin to do its work.
             for p in g_pool.plugins:
@@ -469,7 +456,8 @@ def player(rec_dir, ipc_pub_url, ipc_sub_url,
                 unused_elements = g_pool.gui.update()
                 for b in unused_elements.buttons:
                     button, action, mods = b
-                    pos = glfw.glfwGetCursorPos(main_window)
+                    x, y = glfw.glfwGetCursorPos(main_window)
+                    pos = x * hdpi_factor, y * hdpi_factor
                     pos = normalize(pos, g_pool.camera_render_size)
                     pos = denormalize(pos, g_pool.capture.frame_size)
                     for p in g_pool.plugins:
@@ -525,7 +513,6 @@ def player_drop(rec_dir, ipc_pub_url, ipc_sub_url,
     import zmq
     import zmq_tools
     from time import sleep
-
 
     # zmq ipc setup
     zmq_ctx = zmq.Context()

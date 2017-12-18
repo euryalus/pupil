@@ -79,7 +79,7 @@ class System_Graphs(System_Plugin_Base):
         self.dia1_graph = graph.Bar_Graph(min_val=self.dia_min, max_val=self.dia_max)
         self.dia1_graph.pos = (380, 100)
         self.dia1_graph.update_rate = 5
-        self.dia1_graph.label = "id0 dia: %0.2f"
+        self.dia1_graph.label = "id1 dia: %0.2f"
 
         self.conf_grad = RGBA(1., .0, .0, self.conf0_graph.color[3]), self.conf0_graph.color
 
@@ -100,7 +100,7 @@ class System_Graphs(System_Plugin_Base):
 
     def on_window_resize(self, window, *args):
         fb_size = glfw.glfwGetFramebufferSize(window)
-        hdpi_factor = float(fb_size[0] / glfw.glfwGetWindowSize(window)[0])
+        hdpi_factor = fb_size[0] / glfw.glfwGetWindowSize(window)[0]
 
         self.cpu_graph.scale = hdpi_factor
         self.fps_graph.scale = hdpi_factor
