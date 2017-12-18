@@ -427,7 +427,7 @@ def eye(timebase, is_alive_flag, ipc_pub_url, ipc_sub_url, ipc_push_url,
         frame_publish_format = 'jpeg'
 
         # create a timer to control window update frequency
-        window_update_timer = timer(1 / 60)
+        window_update_timer = timer(1 / 30)
 
         def window_should_update():
             return next(window_update_timer)
@@ -581,7 +581,6 @@ def eye(timebase, is_alive_flag, ipc_pub_url, ipc_sub_url, ipc_push_url,
                                 draw_polyline(pts, 2, RGBA(0., .9, .1, result['model_confidence']))
                         if result['confidence'] > 0:
                             if 'ellipse' in result:
-                                print(result['ellipse']['center'][0])
                                 pts = cv2.ellipse2Poly(
                                     (int(result['ellipse']['center'][0]),
                                      int(result['ellipse']['center'][1])),
@@ -617,8 +616,8 @@ def eye(timebase, is_alive_flag, ipc_pub_url, ipc_sub_url, ipc_push_url,
 
                     # update screen
                     glfw.glfwSwapBuffers(main_window)
-                glfw.glfwPollEvents()
-                g_pool.pupil_detector.visualize()  # detector decides if we visualize or not
+                    g_pool.pupil_detector.visualize()  # detector decides if we visualize or not
+            glfw.glfwPollEvents()
 
         # END while running
 

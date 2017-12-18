@@ -142,7 +142,7 @@ class Eye_Visualizer(Visualizer):
         self.eye.pupil_radius = pupil_radius
         self.eye.iris_radius = iris_radius
         self.eye.cornea_radius = cornea_radius
-        self.eye.update_geometry()
+        #self.eye.update_geometry()
 
         self.eye.move_to_point(result['models'][0]['sphere'][0])
         if (not np.isnan(circle_[0])) and (not np.all(np.isclose(circle_, 0))):
@@ -205,18 +205,18 @@ class Eye_Visualizer(Visualizer):
         glutils.draw_polyline( [ (0,0,0), (0,0,4) ] ,color=RGBA(0,0,0), line_type = GL_LINES) #normal
         glPopMatrix()
 
-    def write_result(self, result, output_dir="/home/kd/Desktop/refraction_results_temp/"):
-
-        output_dir = output_dir.decode("utf-8")
-        try:
-            if result['models'][0]['optimized_parameters'][2]:
-                if result['models'][0]['optimized_parameters'][2] != self.toggle2:
-                    self.optimization_number += 1
-                    #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat" % self.optimization_number, "wb"))
-                    pickle.dump(result['refraction_result'], open(output_dir + "/" + "refraction_result_%i_.dat" % self.optimization_number, "wb"))
-                    self.toggle2 = result['models'][0]['optimized_parameters'][2]
-        except:
-             pass
+    # def write_result(self, result, output_dir="/home/kd/Desktop/refraction_results_temp/"):
+    #
+    #     output_dir = output_dir.decode("utf-8")
+    #     try:
+    #         if result['models'][0]['optimized_parameters'][2]:
+    #             if result['models'][0]['optimized_parameters'][2] != self.toggle2:
+    #                 self.optimization_number += 1
+    #                 #pickle.dump(result['refraction_result'], open("/Users/kai/Desktop/refraction_result_%i_.dat" % self.optimization_number, "wb"))
+    #                 pickle.dump(result['refraction_result'], open(output_dir + "/" + "refraction_result_%i_.dat" % self.optimization_number, "wb"))
+    #                 self.toggle2 = result['models'][0]['optimized_parameters'][2]
+    #     except:
+    #          pass
 
     def draw_residuals(self, result):
 
@@ -302,7 +302,7 @@ class Eye_Visualizer(Visualizer):
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
 
-    def update_window(self, g_pool, result ):
+    def update_window(self, g_pool, result):
 
         if not result:
             return
@@ -310,15 +310,14 @@ class Eye_Visualizer(Visualizer):
         if not self.window:
             return
 
-        #self.cost_history.append(np.log10(np.mean(result['models'][0]['cost_per_pupil']))+7)
         self.begin_update_window()
 
-        self.image_width , self.image_height = g_pool.capture.frame_size
+        self.image_width, self.image_height = g_pool.capture.frame_size
 
         latest_circle = result['circle']
-        predicted_circle = result['predicted_circle']
-        edges = result['edges']
-        sphere_models = result['models']
+        #predicted_circle = result['predicted_circle']
+        #edges = result['edges']
+        #sphere_models = result['models']
 
         self.clear_gl_screen()
         self.trackball.push()
@@ -329,7 +328,7 @@ class Eye_Visualizer(Visualizer):
         g_pool.image_tex.draw(quad=((0,self.image_height),(self.image_width,self.image_height),(self.image_width,0),(0,0)) ,alpha=1.0)
 
         glLoadMatrixf(self.get_adjusted_pixel_space_matrix(15))
-        self.draw_frustum( self.image_width, self.image_height, self.focal_length )
+        self.draw_frustum(self.image_width, self.image_height, self.focal_length)
 
         glLoadMatrixf(self.get_anthropomorphic_matrix())
         model_count = 0

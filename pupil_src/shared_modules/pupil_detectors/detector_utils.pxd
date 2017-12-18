@@ -8,7 +8,6 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 '''
-
 # cython: profile=False
 from detector cimport *
 from methods import  normalize
@@ -19,9 +18,7 @@ cdef extern from 'singleeyefitter/mathHelper.h' namespace 'singleeyefitter::math
 
     Matrix21d cart2sph( Matrix31d& m )
 
-
 cdef inline convertTo2DPythonResult( Detector2DResult& result, object frame, object roi ):
-
 
     ellipse = {}
     ellipse['center'] = (result.ellipse.center[0],result.ellipse.center[1])
@@ -50,34 +47,34 @@ cdef inline convertTo3DPythonRefractionResult( Detector3DResultRefraction& resul
     py_result['optimized_center'] = result.optimized_center
     py_result['cost'] = result.cost
     py_result['number_of_pupils'] = result.number_of_pupils
-    py_result['par_history'] = np.array(result.par_history)
-    py_result['pupil_type_history'] = np.array(result.pupil_type_history)
-    py_result['cost_history'] = np.array(result.cost_history)
+    #py_result['par_history'] = np.array(result.par_history)
+    #py_result['pupil_type_history'] = np.array(result.pupil_type_history)
+    #py_result['cost_history'] = np.array(result.cost_history)
     #py_result['residual_histogram'] = np.array(result.residual_histogram)
     #py_result['mean_residual'] = result.mean_residual
     #py_result['std_residual'] = result.std_residual
 
-    py_result['edges'] = {}
-    py_result['circles'] = {}
-    py_result['ellipses'] = {}
+    #py_result['edges'] = {}
+    #py_result['circles'] = {}
+    #py_result['ellipses'] = {}
 
-    for i in range(py_result['number_of_pupils']):
-
-        py_result['edges'][i] = result.edge_map[i]
-
-        py_result['circles'][i] =  [result.circles[i].center[0],
-                                    result.circles[i].center[1],
-                                    result.circles[i].center[2],
-                                    result.circles[i].normal[0],
-                                    result.circles[i].normal[1],
-                                    result.circles[i].normal[2],
-                                    result.circles[i].radius]
-
-        py_result['ellipses'][i] = [result.ellipses[i].center[0],
-                                    result.ellipses[i].center[1],
-                                    result.ellipses[i].major_radius,
-                                    result.ellipses[i].minor_radius,
-                                    result.ellipses[i].angle]
+    #for i in range(py_result['number_of_pupils']):
+    #
+    #    py_result['edges'][i] = result.edge_map[i]
+    #
+    #    py_result['circles'][i] =  [result.circles[i].center[0],
+    #                                result.circles[i].center[1],
+    #                                result.circles[i].center[2],
+    #                                result.circles[i].normal[0],
+    #                                result.circles[i].normal[1],
+    #                                result.circles[i].normal[2],
+    #                                result.circles[i].radius]
+    #
+    #    py_result['ellipses'][i] = [result.ellipses[i].center[0],
+    #                                result.ellipses[i].center[1],
+    #                                result.ellipses[i].major_radius,
+    #                                result.ellipses[i].minor_radius,
+    #                                result.ellipses[i].angle]
 
     return py_result
 
@@ -92,7 +89,6 @@ cdef inline convertTo3DPythonResult( Detector3DResult& result, object frame    )
     circle['normal'] =  (result.circle.normal[0],-result.circle.normal[1], result.circle.normal[2])
     circle['radius'] =  result.circle.radius
     py_result['circle_3d'] = circle
-
 
     py_result['confidence'] = result.confidence
     py_result['timestamp'] = frame.timestamp
@@ -142,11 +138,11 @@ cdef inline prepareForVisualization3D(  Detector3DResult& result ):
 
     py_visualizationResult = {}
 
-    py_visualizationResult['edges'] = getEdges(result)
     py_visualizationResult['circle'] = getCircle(result);
     py_visualizationResult['cost'] = result.cost
     py_visualizationResult['predicted_circle'] = getPredictedCircle(result);
     py_visualizationResult['refraction_result'] = convertTo3DPythonRefractionResult(result.RefractionResult)
+    #py_visualizationResult['edges'] = getEdges(result)
 
     models = []
     for model in result.models:
@@ -154,22 +150,21 @@ cdef inline prepareForVisualization3D(  Detector3DResult& result ):
         props['optimized_parameters'] = model.optimizedParameters
         props['cost_per_pupil'] = model.costPerPupil
         props['resFit'] = model.resFit
-        props['bin_positions'] = getBinPositions(model)
         props['sphere'] = getSphere(model)
         props['initial_sphere'] = getInitialSphere(model)
-        props['maturity'] = model.maturity
-        props['solver_fit'] = model.solverFit
-        props['confidence'] = model.confidence
-        props['performance'] = model.performance
-        props['performance_gradient'] = model.performanceGradient
         props['model_id'] = model.modelID
         props['birth_timestamp'] = model.birthTimestamp
         models.append(props)
+        #props['bin_positions'] = getBinPositions(model)
+        #props['maturity'] = model.maturity
+        #props['solver_fit'] = model.solverFit
+        #props['confidence'] = model.confidence
+        #props['performance'] = model.performance
+        #props['performance_gradient'] = model.performanceGradient
 
     py_visualizationResult['models'] = models;
 
     return py_visualizationResult
-
 
 cdef inline getBinPositions( ModelDebugProperties& result ):
     if result.binPositions.size() == 0:
@@ -190,7 +185,6 @@ cdef inline getEdges( Detector3DResult& result ):
         edges.append([point[0],point[1],point[2]])
     return edges
 
-
 cdef inline getCircle(const Detector3DResult& result):
     center = result.circle.center
     radius = result.circle.radius
@@ -202,7 +196,6 @@ cdef inline getPredictedCircle(const Detector3DResult& result):
     radius = result.predictedCircle.radius
     normal = result.predictedCircle.normal
     return [ [center[0],center[1],center[2]], [normal[0],normal[1],normal[2]], radius ]
-
 
 cdef inline getSphere(const ModelDebugProperties& result ):
     sphere = result.sphere

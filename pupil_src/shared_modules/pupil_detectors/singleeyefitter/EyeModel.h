@@ -1,4 +1,3 @@
-
 #ifndef EYEMODEL_H__
 #define EYEMODEL_H__
 
@@ -19,15 +18,14 @@
 
 namespace singleeyefitter {
 
-
-    /*
-        Observation class
-
-        Hold data which is precalculated for every new observation
-        Every observation is shared between different models
-
-    */
     class Observation {
+        /*
+            Observation class
+
+            Hold data which is precalculated for every new observation
+            Every observation is shared between different models
+
+        */
         std::shared_ptr<const Detector2DResult> mObservation2D;
         std::pair<Circle,Circle> mUnprojectedCirclePair;
         Line mProjectedCircleGaze;
@@ -67,182 +65,165 @@ namespace singleeyefitter {
 
     typedef std::shared_ptr<const Observation> ObservationPtr;
 
+    //enum refraction_mode {SWIRSKI, REFRACTION, REFRACTION_APPROXIMATE};
 
-class EyeModel {
+    class EyeModel {
 
-        typedef singleeyefitter::Sphere<double> Sphere;
+            typedef singleeyefitter::Sphere<double> Sphere;
 
-    public:
+            public:
 
-        // CONSTRUCTORS
-        EyeModel(int modelId, double timestamp, double focalLength, Vector3 cameraCenter = Vector3::Zero(), int initialUncheckedPupils = 5, double binResolution = 0.05);
-        EyeModel(const EyeModel&) = delete;
-        ~EyeModel();
+                // Constructors
+                EyeModel(int modelId, double timestamp, double focalLength, Vector3 cameraCenter = Vector3::Zero(), int initialUncheckedPupils = 5, double binResolution = 0.05);
+                EyeModel(const EyeModel&) = delete;
+                ~EyeModel();
 
-        // DOOR TO THE OUTER WORLD
-        Detector3DResult predictAndUpdate(std::shared_ptr<Detector2DResult>&, const Detector3DProperties&, bool);
-        std::pair<Circle, double> presentObservation(const ObservationPtr, double averageFramerate);
+                // General functions
+                Detector3DResult predictAndUpdate(std::shared_ptr<Detector2DResult>&, const Detector3DProperties&, bool);
+                std::pair<Circle, double> presentObservation(const ObservationPtr, const Detector3DProperties&);
+                int addObservation(std::shared_ptr<Detector2DResult>&, int);
+                Detector3DResultRefraction optimize(bool, const Detector3DProperties&);
+                Circle predictSingleObservation(std::shared_ptr<Detector2DResult>&, bool, const Detector3DProperties&);
+                void setApproximationParameters(std::vector<double>, std::vector<double>, std::vector<double> , std::vector<double> , std::vector<double>);
+                void reset();
 
-        // FOR CONTROLLED FITTING
-        int addObservation(std::shared_ptr<Detector2DResult>&, int);
-        Detector3DResultRefraction optimizeRefraction(bool);
-        Circle predictSingleObservation(std::shared_ptr<Detector2DResult>&, bool);
-        void setSphereCenter(std::vector<double>);
-        void setApproximationParameters(std::vector<double>, std::vector<double>, std::vector<double> , std::vector<double> , std::vector<double> );
-        void reset();
+                // Setter
+                void setSphereCenter(std::vector<double>,const Detector3DProperties&);
 
+                // Getter
+                Sphere getSphere() const;
+                Sphere getInitialSphere() const;
+                std::vector<double> getOptimizedParameters() const;
+                std::vector<double> getCostPerPupil() const;
+                std::vector<double> getResFit() const;
+                int getNumResidualBlocks() const;
+                Detector3DResultRefraction getRefractionResult() const;
+                double getFocalLength(){return mFocalLength;};
+                int getModelID() const {return mModelID;};
+                double getBirthTimestamp() const {return mBirthTimestamp;};
 
+            private:
 
-        // Getter
-        Sphere mCurrentSphere;
-        Sphere mCurrentInitialSphere;
+                struct PupilParams {
 
-        Sphere getSphere() const;
-        Sphere getInitialSphere() const;
-        std::vector<double> getOptimizedParameters() const;
-        std::vector<double> getCostPerPupil() const;
-        std::vector<double> getResFit() const;
-        int getNumResidualBlocks() const;
-        Detector3DResultRefraction getRefractionResult() const;
-        double getFocalLength(){ return mFocalLength; };
+                    double theta, psi, radius;
+                    PupilParams() : theta(0), psi(0), radius(0) {};
+                    PupilParams(double theta, double psi, double radius) : theta(theta), psi(psi), radius(radius){};
 
-        int getModelID() const {return mModelID;};
-        double getBirthTimestamp() const {return mBirthTimestamp;};
+                };
 
-        // ----- Visualization --------
-        std::vector<Vector3> getBinPositions() const {return mBinPositions;};
-        // ----- Visualization END --------
+                struct Pupil {
 
-    private:
+                    Circle mCircle;
+                    PupilParams mParams;
+                    const ObservationPtr mObservationPtr;
+                    //Pupil( const ObservationPtr observationPtr ) : mObservationPtr( observationPtr ){};
+                    Pupil( const ObservationPtr observationPtr) : mObservationPtr( observationPtr ){
+                        mParams = PupilParams(0,0,0);
+                        optimizedParams[0] = 0;
+                        optimizedParams[1] = 0;
+                        optimizedParams[2] = 0;
+                    };
+                    Pupil( const ObservationPtr observationPtr, PupilParams params ) : mObservationPtr( observationPtr ){
+                        mParams = PupilParams(params.theta, params.psi, params.radius);
+                        optimizedParams[0] = params.theta;
+                        optimizedParams[1] = params.psi;
+                        optimizedParams[2] = params.radius;
+                    };
+                    ceres::ResidualBlockId mResidualBlockId;
+                    double * const optimizedParams = static_cast<double * const>(malloc(3*sizeof(double)));
+                    int ceres_toggle = 0;
 
-        Detector3DResultRefraction mResult;
+                };
 
-        struct PupilParams {
+                Sphere findSphereCenter(const Detector3DProperties&, bool use_ransac = true);
+                Sphere initialiseModel(const Detector3DProperties& props);
+                double refineWithEdgesRefraction(Sphere&, const Detector3DProperties&);
+                double refineWithEdgesSwirski(Sphere&, const Detector3DProperties&);
+                bool tryTransferNewObservations();
 
-            double theta, psi, radius;
-            PupilParams() : theta(0), psi(0), radius(0) {};
-            PupilParams(double theta, double psi, double radius) : theta(theta), psi(psi), radius(radius){};
+                Detector3DResultRefraction mResult;
 
-        };
+                // General functions
+                bool isSpatialRelevant(const Circle& circle);
+                void initialiseSingleObservation(const Sphere& sphere, Pupil& pupil) const;
 
-        struct Pupil {
+                // Predictors
+                std::pair<PupilParams, double> predictRefraction( const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation, const Detector3DProperties&) const;
+                std::pair<PupilParams, double> predictRefractionApproximate(const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation, const Detector3DProperties&) const;
+                std::pair<PupilParams, double> predictSwirski(const Sphere& sphere, const Circle& circle, const ObservationPtr observation, const Detector3DProperties&) const;
 
-            Circle mCircle;
-            PupilParams mParams;
-            const ObservationPtr mObservationPtr;
-            //Pupil( const ObservationPtr observationPtr ) : mObservationPtr( observationPtr ){};
-            Pupil( const ObservationPtr observationPtr) : mObservationPtr( observationPtr ){
-                mParams = PupilParams(0,0,0);
-                optimizedParams[0] = 0;
-                optimizedParams[1] = 0;
-                optimizedParams[2] = 0;
-            };
-            Pupil( const ObservationPtr observationPtr, PupilParams params ) : mObservationPtr( observationPtr ){
-                mParams = PupilParams(params.theta, params.psi, params.radius);
-                optimizedParams[0] = params.theta;
-                optimizedParams[1] = params.psi;
-                optimizedParams[2] = params.radius;
-            };
-            ceres::ResidualBlockId mResidualBlockId;
-            double * const optimizedParams = static_cast<double * const>(malloc(3*sizeof(double)));
-            int ceres_toggle = 0;
+                // Utilities
+                const Circle& selectUnprojectedCircle(const Sphere& sphere, const std::pair<const Circle, const Circle>& circles) const;
+                Circle circleFromParams(const Sphere& eye, const  PupilParams& params) const;
+                void prepareObservation(std::shared_ptr<Detector2DResult>&) const;
+                Circle getIntersectedCircle(const Sphere& sphere, const Circle& circle) const;
+                Circle getInitialCircle(const Sphere& sphere, const Circle& circle) const;
+                Eigen::Matrix<double,3,3> correction_matrix(Eigen::Matrix<double,3,1> v1, Eigen::Matrix<double,3,1> v2, double theta) const;
 
-        };
+                // Spatial bins
+                std::unordered_map<Vector2, bool, math::matrix_hash<Vector2>> mSpatialBins;
+                std::vector<Vector3> mBinPositions; // for visualization
 
-        Sphere findSphereCenter( bool use_ransac = true);
-        Sphere initialiseModel();
-        double refineWithEdgesRefraction(Sphere& sphere);
-        bool tryTransferNewObservations();
+                // Concurrency
+                mutable std::mutex mModelMutex;
+                std::mutex mPupilMutex;
+                mutable std::mutex mRefractionMutex;
+                std::thread mWorker;
+                Clock::time_point mLastModelRefinementTime;
 
+                // General model parameters
+                const double mFocalLength;
+                const Vector3 mCameraCenter;
+                const int mInitialUncheckedPupils;
+                const double mBinResolution;
+                const int mTotalBins;
+                const int mModelID;
+                double mBirthTimestamp;
 
-        ConfidenceValue calculateModelOberservationFit(const Circle&  unprojectedCircle, const Circle& initialisedCircle, double confidence) const;
-        void updatePerformance( const ConfidenceValue& observation_fit, double averageFramerate);
+                // Flag for debug mode
+                bool mDebug;
 
-        double calculateModelFit(const Circle&  unprojectedCircle, const Circle& optimizedCircle) const;
-        bool isSpatialRelevant(const Circle& circle);
+                // More general model and optimization parameters
+//                refraction_mode mRefractionMode;
+//                double mEdgeNumber;
+//                double mStrikes;
+//                double mCenterWeightInitial;
+//                double mCenterWeightFinal;
+//                int mIterationNumbers[5];
+//                double mResidualsAveragedFraction;
+//                double mOutlierFactor;
+//                int mStartRemoveNumber;
+//                double mCauchyLossScale;
+//                double mEyeballRadius;
+//                double mCorneaRadius;
+//                double mIrisRadius;
 
-        const Circle& selectUnprojectedCircle(const Sphere& sphere, const std::pair<const Circle, const Circle>& circles) const;
-        void initialiseSingleObservation(const Sphere& sphere, Pupil& pupil) const;
-        Circle getIntersectedCircle(const Sphere& sphere, const Circle& circle) const;
-        Circle getInitialCircle(const Sphere& sphere, const Circle& circle) const;
+                // Parameters of approximation function
+                Eigen::Matrix<double, Eigen::Dynamic, 1> mCp;
+                Eigen::Matrix<double, Eigen::Dynamic, 1> mCt;
+                Eigen::Matrix<double, Eigen::Dynamic, 1> mCr;
+                Eigen::Matrix<int, Eigen::Dynamic, 5> mExponents;
+                Eigen::Matrix<double, Eigen::Dynamic, 1> mConstants;
 
-        // Predictors
-        std::pair<PupilParams, double> predictFullOptimization( const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation ) const;
-        std::pair<PupilParams, double> predictApproximate(const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation) const;
-        std::pair<PupilParams, double> predictSwirksi(const Sphere& sphere, const Circle& unrefracted_circle, const ObservationPtr observation) const;
+                // Ceres related
+                std::vector<double> mCostPerBlock;
+                double * const eye_params = static_cast<double * const>(malloc(5*sizeof(double)));
+                std::vector<double> mOptimizedParams;
+                void removePupilFromOptimization(std::vector<Pupil>::iterator iter);
 
-        //Circle circleFromParams( CircleParams& params) const;
-        Circle circleFromParams(const Sphere& eye,const  PupilParams& params) const;
+                // Thread sensitive variables
+                double mSolverFit;                    // Residual of Ceres solver, thread sensitive
+                Sphere mSphere;                       // Thread sensitive
+                Sphere mInitialSphere;                // Thread sensitive
+                std::vector<Pupil> mSupportingPupils; // just used within the worker thread, Thread sensitive
+                int mSupportingPupilSize;             // Thread sensitive, use this to get the SupportedPupil size
 
-        std::unordered_map<Vector2, bool, math::matrix_hash<Vector2>> mSpatialBins;
-        std::vector<Vector3> mBinPositions; // for visualization
+                // Observations are saved here and only if needed transferred to mSupportingPupils since mSupportingPupils needs a mutex
+                std::vector<Pupil> mSupportingPupilsToAdd;
 
-        mutable std::mutex mModelMutex;
-        std::mutex mPupilMutex;
-        mutable std::mutex mRefractionMutex;
-        std::thread mWorker;
-        Clock::time_point mLastModelRefinementTime;
-
-        // Factors which describe how good certain properties of the model are
-        //std::list<double> mModelSupports; // values to calculate the average
-        double mSolverFit; // Residual of Ceres sovler , Thread sensitive
-        math::WMA<double> mPerformance; // moving Average of model support
-        float mPerformanceWindowSize;  // in seconds
-        double mPerformanceGradient;
-        Clock::time_point mLastPerformanceCalculationTime; // for the gradient calculation when need keep track of the time
-
-        const double mFocalLength;
-        const Vector3 mCameraCenter;
-        const int mInitialUncheckedPupils;
-        const double mBinResolution;
-        const int mTotalBins;
-        const int mModelID;
-        double mBirthTimestamp;
-
-        bool mDebug;
-        double mApproximatedFramerate;
-        double mAverageFramerate;
-        double mLastFrameTimestamp = 0;
-
-        double mEdgeNumber; //Number of edges per pupil used during optimization
-        double mStrikes;
-        double mCenterWeightInitial;
-        double mCenterWeightFinal;
-        int mIterationNumbers[5];
-        double mResidualsAveragedFraction;
-        double mOutlierFactor;
-        int mStartRemoveNumber;
-        double mCauchyLossScale;
-
-        Eigen::Matrix<double, Eigen::Dynamic, 1> mCp;
-        Eigen::Matrix<double, Eigen::Dynamic, 1> mCt;
-        Eigen::Matrix<double, Eigen::Dynamic, 1> mCr;
-        Eigen::Matrix<int, Eigen::Dynamic, 5> mExponents;
-        Eigen::Matrix<double, Eigen::Dynamic, 1> mConstants;
-
-        double mEyeballRadius;
-        double mCorneaRadius;
-        double mIrisRadius;
-        double mInitialCorneaRadius;
-        double mInitialIrisRadius;
-
-        std::vector<double> mCostPerBlock;  // Here we store after each optimization the current cost per residual block
-        double * const eye_params = static_cast<double * const>(malloc(5*sizeof(double)));
-        std::vector<double> mOptimizedParams;
-        void removePupilFromOptimization(std::vector<Pupil>::iterator iter);
-
-        Eigen::Matrix<double,3,3> correction_matrix(Eigen::Matrix<double,3,1> v1, Eigen::Matrix<double,3,1> v2, double theta) const;
-
-        Sphere mSphere;                       // Thread sensitive
-        Sphere mInitialSphere;                // Thread sensitive
-        std::vector<Pupil> mSupportingPupils; // just used within the worker thread, Thread sensitive
-        int mSupportingPupilSize;             // Thread sensitive, use this to get the SupportedPupil size
-
-        // observations are saved here and only if needed transferred to mSupportingPupils
-        // since mSupportingPupils needs a mutex
-        std::vector<Pupil> mSupportingPupilsToAdd;
-};
-
+    };
 
 } // singleeyefitter
+
 #endif /* end of include guard: EYEMODEL_H__ */

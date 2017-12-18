@@ -83,9 +83,9 @@ namespace singleeyefitter {
 //        double mean_residual;
 //        double std_residual;
         std::string message;
-        std::map<int,std::vector<std::vector<double>>> edge_map;
-        std::vector<Circle> circles;
-        std::vector<Ellipse> ellipses;
+//        std::map<int,std::vector<std::vector<double>>> edge_map;
+//        std::vector<Circle> circles;
+//        std::vector<Ellipse> ellipses;
         double resFit[2];
 
     };
@@ -150,9 +150,25 @@ namespace singleeyefitter {
 
     };
 
+    enum refraction_mode {SWIRSKI, REFRACTION, REFRACTION_APPROXIMATE};
+
     struct Detector3DProperties {
-        float model_sensitivity;
+         int edge_number;
+         int strikes;
+         double center_weight_initial;
+         double center_weight_final;
+         std::vector<int> iteration_numbers;
+         double residuals_averaged_fraction;
+         double outlier_factor;
+         int start_remove_number;
+         double cauchy_loss_scale;
+         double eyeball_radius;
+         double cornea_radius;
+         double iris_radius;
+         double n_ref;
+         refraction_mode run_mode;
     };
+
 
 } // singleeyefitter namespace
 

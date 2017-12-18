@@ -5,7 +5,7 @@ from .utilities import rmatx, rmaty, rmatz, rotate
 from .geometry import normalize, Circle, rotate_v1_on_v2
 
 class Eye(object):
-    def __init__(self, pupil_radius=3.0, n=1.0, de=50.0, re=12.0, rc=7.3, ri=5.9):
+    def __init__(self, pupil_radius=3.0, n=1.0, de=50.0, re=12.0, rc=7.5, ri=6.0):
 
         self.d_image_eyeball = de  # mm
 

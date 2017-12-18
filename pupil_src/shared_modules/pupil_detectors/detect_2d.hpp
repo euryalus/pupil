@@ -53,7 +53,9 @@ class Detector2D {
 
 void printPoints(std::vector<cv::Point> points)
 {
+
 	std::for_each(points.begin(), points.end(), [](cv::Point & p) { std::cout << p << std::endl;});
+
 }
 
 Detector2D::Detector2D(): mUse_strong_prior(false), mPupil_Size(100) {};

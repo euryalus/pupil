@@ -195,6 +195,7 @@ class Single_Marker_Calibration(Calibration_Plugin):
             if len(self.markers) > 0:
                 self.detected = True
                 marker_pos = self.markers[0][0][0]  # first marker, innermost ellipse,center
+
                 self.pos = normalize(marker_pos, (frame.width, frame.height), flip_y=True)
 
             else:

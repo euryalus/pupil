@@ -18,12 +18,10 @@ from libcpp.map cimport map
 from libcpp cimport bool
 
 
-
 cdef extern from '<opencv2/core.hpp>':
 
   int CV_8UC1
   int CV_8UC3
-
 
 cdef extern from '<opencv2/core.hpp>' namespace 'cv':
 
@@ -53,6 +51,7 @@ cdef extern from '<opencv2/core.hpp>' namespace 'cv':
     Scalar_( T x ) except +
 
 cdef extern from '<Eigen/Eigen>' namespace 'Eigen':
+
     cdef cppclass Matrix21d "Eigen::Matrix<double,2,1>": # eigen defaults to column major layout
         Matrix21d() except +
         double * data()
@@ -85,7 +84,7 @@ cdef extern from 'common/types.h':
         Matrix31d normal
         float radius
 
-        #typdefs
+    #typdefs
     ctypedef Matrix31d Vector3
     ctypedef Matrix21d Vector2
     ctypedef vector[vector[Vector3]] Contours3D
@@ -117,9 +116,9 @@ cdef extern from 'common/types.h':
         #vector[double] residual_histogram
         #double mean_residual
         #double std_residual
-        map[int,vector[vector[double]]] edge_map
-        vector[Circle] circles
-        vector[Ellipse] ellipses
+        #map[int,vector[vector[double]]] edge_map
+        #vector[Circle] circles
+        #vector[Ellipse] ellipses
         double resFit[2]
 
 
@@ -177,8 +176,23 @@ cdef extern from 'common/types.h':
         float ellipse_true_support_min_dist
 
     cdef struct Detector3DProperties:
-        float model_sensitivity
+        int edge_number
+        int strikes
+        double center_weight_initial
+        double center_weight_final
+        vector[int] iteration_numbers
+        double residuals_averaged_fraction
+        double outlier_factor
+        int start_remove_number
+        double cauchy_loss_scale
+        double eyeball_radius
+        double cornea_radius
+        double iris_radius
+        double n_ref
+        refraction_mode run_mode
 
+    cdef enum refraction_mode:
+        SWIRSKI, REFRACTION, REFRACTION_APPROXIMATE
 
 
 cdef extern from 'detect_2d.hpp':
@@ -210,13 +224,14 @@ cdef extern from "singleeyefitter/EyeModel.h" namespace "singleeyefitter":
         Detector3DResult predictAndUpdate( shared_ptr[Detector2DResult]& results, const Detector3DProperties& prop, bint fillDebugResult )
 
         int addObservation(shared_ptr[Detector2DResult]& results, int prepare_toggle)
-        Detector3DResultRefraction optimizeRefraction(bool initialization_toggle)
-        void setSphereCenter(vector[double])
-        Circle predictSingleObservation(shared_ptr[Detector2DResult]& results, bool prepare)
+        Detector3DResultRefraction optimize(bool initialization_toggle, const Detector3DProperties&  props)
+        void setSphereCenter(vector[double] sphere_center, const Detector3DProperties&  props)
+        Circle predictSingleObservation(shared_ptr[Detector2DResult]& results, bool prepare, const Detector3DProperties&)
         void setApproximationParameters(vector[double], vector[double], vector[double], vector[double], vector[double])
 
         void reset()
         double getFocalLength()
+        Sphere[double] getSphere()
 
         double mFocalLength
         Sphere[double] mCurrentSphere

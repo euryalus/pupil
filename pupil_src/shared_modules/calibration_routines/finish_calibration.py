@@ -33,7 +33,6 @@ def calibrate_3d_binocular(g_pool, matched_binocular_data, pupil0, pupil1):
     hardcoded_translation1 = np.array([-40, 15, -20])
 
     # TODO model the world as cv2 pinhole camera with distorion and focal in ceres.
-    # right now we solve using a few permutations of K
 
     ref_dir, gaze0_dir, gaze1_dir = calibrate.preprocess_3d_data(matched_binocular_data, g_pool)
 

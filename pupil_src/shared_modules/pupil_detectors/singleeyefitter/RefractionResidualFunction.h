@@ -24,7 +24,7 @@ Eigen::Matrix<T, 3, 1> map_to_tangent_space(const cv::Point& inlier,
                             const T* const eye_param,
                             const T* const pupil_param,
                             double focal_length,
-                            double nref_ = 1.376)
+                            double nref_ = 1.3375)
 {
 
                 typedef Eigen::Matrix<T, 3, 1> Vector3;
@@ -278,13 +278,15 @@ class RefractionResidualFunction
                                             const Scalar& focal_length,
                                             const cv::Point ellipse_center,
                                             double * const lambda_2,
-                                            const int N):
+                                            const int N,
+                                            const double n_ref):
                                             edges(edges),
                                             eyeball_radius(eyeball_radius),
                                             focal_length(focal_length),
                                             ellipse_center(ellipse_center),
                                             lambda_2(lambda_2),
-                                            N(N)
+                                            N(N),
+                                            n_ref(n_ref)
                                             {
 
                                               for (int i=0; i<edges.size(); i++){
@@ -325,12 +327,12 @@ class RefractionResidualFunction
             p_center = sphere_center + dp * par_spherical;
 
             for (int i = 0; i < N; ++i) {
-                upprojected_edge = map_to_tangent_space<T>(internal_edges[i], &sphere_center[0], &extended_eye_param[0], pupil_param, focal_length);
+                upprojected_edge = map_to_tangent_space<T>(internal_edges[i], &sphere_center[0], &extended_eye_param[0], pupil_param, focal_length, n_ref);
                 e[i] = (r - (p_center-upprojected_edge).norm())/sphere_center.norm();
 
             }
 
-            upprojected_edge = map_to_tangent_space<T>(ellipse_center, &sphere_center[0], &extended_eye_param[0], pupil_param, focal_length);
+            upprojected_edge = map_to_tangent_space<T>(ellipse_center, &sphere_center[0], &extended_eye_param[0], pupil_param, focal_length, n_ref);
             e[N] = T(*lambda_2)*(p_center-upprojected_edge).norm()/sphere_center.norm();
 
             return true;
@@ -347,6 +349,7 @@ class RefractionResidualFunction
         double * const lambda_2;
         std::vector<int> v;
         const int N;
+        double n_ref;
 
 };
 
