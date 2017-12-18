@@ -226,7 +226,7 @@ cdef extern from "singleeyefitter/EyeModel.h" namespace "singleeyefitter":
         int addObservation(shared_ptr[Detector2DResult]& results, int prepare_toggle)
         Detector3DResultRefraction optimize(bool initialization_toggle, const Detector3DProperties&  props)
         void setSphereCenter(vector[double] sphere_center, const Detector3DProperties&  props)
-        Circle predictSingleObservation(shared_ptr[Detector2DResult]& results, bool prepare, const Detector3DProperties&)
+        Detector3DResult predictSingleObservation(shared_ptr[Detector2DResult]& results, bool prepare, const Detector3DProperties&)
         void setApproximationParameters(vector[double], vector[double], vector[double], vector[double], vector[double])
 
         void reset()

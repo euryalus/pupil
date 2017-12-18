@@ -234,8 +234,8 @@ cdef class Detector_3D:
         self.detector3DPtr.setSphereCenter(center, self.detectProperties3D)
 
     def get_sphere_center(self):
-
         cdef Sphere[double] sphere = self.detector3DPtr.getSphere()
+
         return np.array([sphere.center[0],sphere.center[1],sphere.center[2]])
 
     def predict(self, frame, user_roi, visualize):
@@ -244,14 +244,10 @@ cdef class Detector_3D:
         deref(self.Result2D_ptr).timestamp = frame.timestamp # The timestamp is not set elsewhere but it is needed in detector3D
 
         # 3D model part
-        prediction = self.detector3DPtr.predictSingleObservation(self.Result2D_ptr, 1, self.detectProperties3D)
+        cdef Detector3DResult cpp3DResult = self.detector3DPtr.predictSingleObservation(self.Result2D_ptr, 1, self.detectProperties3D)
+        pyResult = convertTo3DPythonResult(cpp3DResult, frame)
 
-        pupil = {}
-        pupil['center'] = [prediction.center[0],prediction.center[1],prediction.center[2]]
-        pupil['normal'] = [prediction.normal[0],prediction.normal[1],prediction.normal[2]]
-        pupil['radius'] = prediction.radius
-
-        return pupil
+        return pyResult
 
     def add_observation(self, frame, user_roi, visualize):
         # 2D model part

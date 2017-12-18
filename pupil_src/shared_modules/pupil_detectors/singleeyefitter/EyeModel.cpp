@@ -1126,7 +1126,7 @@ void EyeModel::initialiseSingleObservation( const Sphere& sphere, Pupil& pupil) 
 
 
 // Predictors
-Circle EyeModel::predictSingleObservation(std::shared_ptr<Detector2DResult>& observation2D, bool prepare, const Detector3DProperties& props)
+Detector3DResult EyeModel::predictSingleObservation(std::shared_ptr<Detector2DResult>& observation2D, bool prepare, const Detector3DProperties& props)
 {
         if(prepare){
             prepareObservation(observation2D);
@@ -1135,26 +1135,43 @@ Circle EyeModel::predictSingleObservation(std::shared_ptr<Detector2DResult>& obs
         Circle circle;
         const Circle& unprojectedCircle = selectUnprojectedCircle(mSphere, newObservationPtr->getUnprojectedCirclePair());
         circle = getInitialCircle(mSphere, unprojectedCircle);
-        std::pair<PupilParams, double>  prediction ;
+        std::pair<PupilParams, double> prediction;
         switch(props.run_mode){
             case SWIRSKI:
-                 prediction  = predictSwirski(mSphere, circle, newObservationPtr, props);
+                prediction  = predictSwirski(mSphere, circle, newObservationPtr, props);
                 break;
             case REFRACTION:
-                 prediction  = predictRefraction(mSphere, circle, newObservationPtr, props);
+                prediction  = predictRefraction(mSphere, circle, newObservationPtr, props);
                 break;
             case REFRACTION_APPROXIMATE:
-                 prediction  = predictRefractionApproximate(mSphere, circle, newObservationPtr, props);
+                prediction  = predictRefractionApproximate(mSphere, circle, newObservationPtr, props);
                 break;
             default:
                  prediction  = predictRefractionApproximate(mSphere, circle, newObservationPtr, props);
         }
         if (prediction.second<0){ //TODO WORKAROUND for predictSwirksi
-            return Circle::Null;
+            circle = Circle::Null;
         }else{
             circle = circleFromParams(mSphere, prediction.first);
         }
-        return circle;
+
+        Detector3DResult result;
+        result.circle = circle;
+        result.confidence = observation2D->confidence;
+        result.timestamp = observation2D->timestamp;
+        result.sphere = getSphere();;
+        result.projectedSphere = project(getSphere(), mFocalLength);
+        if(result.circle != Circle::Null){
+            result.ellipse = Ellipse(project(result.circle, mFocalLength));
+        }else{
+            result.confidence = 0.0;
+            result.ellipse = Ellipse::Null;
+        }
+        result.modelID = getModelID();
+        result.modelBirthTimestamp = getBirthTimestamp();
+
+        return result;
+
 
 }
 

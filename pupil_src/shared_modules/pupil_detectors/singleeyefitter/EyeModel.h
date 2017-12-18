@@ -83,7 +83,7 @@ namespace singleeyefitter {
                 std::pair<Circle, double> presentObservation(const ObservationPtr, const Detector3DProperties&);
                 int addObservation(std::shared_ptr<Detector2DResult>&, int);
                 Detector3DResultRefraction optimize(bool, const Detector3DProperties&);
-                Circle predictSingleObservation(std::shared_ptr<Detector2DResult>&, bool, const Detector3DProperties&);
+                Detector3DResult predictSingleObservation(std::shared_ptr<Detector2DResult>&, bool, const Detector3DProperties&);
                 void setApproximationParameters(std::vector<double>, std::vector<double>, std::vector<double> , std::vector<double> , std::vector<double>);
                 void reset();
 
