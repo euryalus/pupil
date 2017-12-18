@@ -1523,16 +1523,13 @@ int EyeModel::addObservation(std::shared_ptr<Detector2DResult>& observation2D, i
     }
 
     auto newObservationPtr = std::make_shared<const Observation>(observation2D, mFocalLength);
-    if (newObservationPtr->getObservation2D()->confidence>0.4){
-        mSupportingPupilsToAdd.emplace_back(newObservationPtr);
-        for( auto& pupil : mSupportingPupilsToAdd){
-            mSupportingPupils.push_back(std::move(pupil));
-        }
-        mSupportingPupilsToAdd.clear();
-        mSupportingPupilSize = mSupportingPupils.size();
-    }else{
-        std::cout << "Low confidence: " << newObservationPtr->getObservation2D()->confidence << std::endl;
+
+    mSupportingPupilsToAdd.emplace_back(newObservationPtr);
+    for(auto& pupil : mSupportingPupilsToAdd){
+        mSupportingPupils.push_back(std::move(pupil));
     }
+    mSupportingPupilsToAdd.clear();
+    mSupportingPupilSize = mSupportingPupils.size();
 
     return static_cast<int>(mSupportingPupils.size());
 }

@@ -249,12 +249,14 @@ cdef class Detector_3D:
 
         return pyResult
 
-    def add_observation(self, frame, user_roi, visualize):
+    def add_observation(self, frame, user_roi, visualize, confidence_threshold=-1):
         # 2D model part
         self.detect2D(frame, user_roi, visualize) # Pointer to result is stored in self.Result2D_ptr
         deref(self.Result2D_ptr).timestamp = frame.timestamp # The timestamp is not set elsewhere but it is needed in detector3D
-
-        return self.detector3DPtr.addObservation(self.Result2D_ptr, 1)
+        if deref(self.Result2D_ptr).confidence > confidence_threshold:
+            return self.detector3DPtr.addObservation(self.Result2D_ptr, 1)
+        else:
+            return -1
 
     def reset_3D_Model(self):
          self.detector3DPtr.reset()
