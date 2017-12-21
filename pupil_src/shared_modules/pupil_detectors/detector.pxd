@@ -190,6 +190,7 @@ cdef extern from 'common/types.h':
         double iris_radius
         double n_ref
         refraction_mode run_mode
+        vector[int] pars_to_optimize
 
     cdef enum refraction_mode:
         SWIRSKI, REFRACTION, REFRACTION_APPROXIMATE

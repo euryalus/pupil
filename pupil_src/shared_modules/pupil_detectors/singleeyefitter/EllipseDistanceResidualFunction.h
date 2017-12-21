@@ -18,10 +18,10 @@ class EllipseDistanceResidualFunction {
             /*eye_image(eye_image), */edges(edges), eye_radius(eye_radius), focal_length(focal_length) {}
 
         template <typename T>
-        bool operator()(const T* const eye_param, const T* const pupil_param, T* e) const
+        bool operator()(const T* const eye_x, const T* const eye_y, const T* const eye_z, const T* const pupil_param, T* e) const
         {
             typedef typename ad_traits<T>::scalar Const;
-            Eigen::Matrix<T, 3, 1> eye_pos(eye_param[0], eye_param[1], eye_param[2]);
+            Eigen::Matrix<T, 3, 1> eye_pos(eye_x[0], eye_y[0], eye_z[0]);
             Sphere<T> eye(eye_pos, T(eye_radius));
             Ellipse2D<T> pupil_ellipse(project(circleOnSphere(eye, pupil_param[0], pupil_param[1], pupil_param[2]), T(focal_length)));
             EllipseDistCalculator<T> ellipDist(pupil_ellipse);

@@ -167,6 +167,7 @@ namespace singleeyefitter {
          double iris_radius;
          double n_ref;
          refraction_mode run_mode;
+         std::vector<int> pars_to_optimize;
     };
 
 

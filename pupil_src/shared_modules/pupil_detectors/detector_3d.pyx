@@ -78,26 +78,48 @@ cdef class Detector_3D:
         self.detectProperties3D = settings['3D_Settings'] if settings else {}
 
         if not self.detectProperties2D:
-            self.detectProperties2D["coarse_detection"] = True
-            self.detectProperties2D["coarse_filter_min"] = 128
+#            self.detectProperties2D["coarse_detection"] = True
+#            self.detectProperties2D["coarse_filter_min"] = 128
+#            self.detectProperties2D["coarse_filter_max"] = 280
+#            self.detectProperties2D["intensity_range"] = 23
+#            self.detectProperties2D["blur_size"] = 3
+#            self.detectProperties2D["canny_treshold"] = 200
+#            self.detectProperties2D["canny_ration"] = 3
+#            self.detectProperties2D["canny_aperture"] = 5
+#            self.detectProperties2D["pupil_size_max"] = 150
+#            self.detectProperties2D["pupil_size_min"] = 20
+#            self.detectProperties2D["strong_perimeter_ratio_range_min"] = 0.8
+#            self.detectProperties2D["strong_perimeter_ratio_range_max"] = 1.1
+#            self.detectProperties2D["strong_area_ratio_range_min"] = 0.6
+#            self.detectProperties2D["strong_area_ratio_range_max"] = 1.1
+#            self.detectProperties2D["contour_size_min"] = 5
+#            self.detectProperties2D["ellipse_roundness_ratio"] = 0.1
+#            self.detectProperties2D["initial_ellipse_fit_treshhold"] = 1.8
+#            self.detectProperties2D["final_perimeter_ratio_range_min"] = 0.6
+#            self.detectProperties2D["final_perimeter_ratio_range_max"] = 1.2
+#            self.detectProperties2D["ellipse_true_support_min_dist"] = 2.5
+            detect2DProperties = {}
+            self.detectProperties2D["coarse_detection"] = False
+            self.detectProperties2D["coarse_filter_min"] = 100
             self.detectProperties2D["coarse_filter_max"] = 280
             self.detectProperties2D["intensity_range"] = 23
             self.detectProperties2D["blur_size"] = 3
             self.detectProperties2D["canny_treshold"] = 200
             self.detectProperties2D["canny_ration"] = 3
             self.detectProperties2D["canny_aperture"] = 5
-            self.detectProperties2D["pupil_size_max"] = 150
-            self.detectProperties2D["pupil_size_min"] = 20
+            self.detectProperties2D["pupil_size_max"] = 400
+            self.detectProperties2D["pupil_size_min"] = 10
             self.detectProperties2D["strong_perimeter_ratio_range_min"] = 0.8
             self.detectProperties2D["strong_perimeter_ratio_range_max"] = 1.1
             self.detectProperties2D["strong_area_ratio_range_min"] = 0.6
             self.detectProperties2D["strong_area_ratio_range_max"] = 1.1
             self.detectProperties2D["contour_size_min"] = 5
             self.detectProperties2D["ellipse_roundness_ratio"] = 0.1
-            self.detectProperties2D["initial_ellipse_fit_treshhold"] = 1.8
+            self.detectProperties2D["initial_ellipse_fit_treshhold"] = 1.8 #4.8 #1.8
             self.detectProperties2D["final_perimeter_ratio_range_min"] = 0.6
             self.detectProperties2D["final_perimeter_ratio_range_max"] = 1.2
             self.detectProperties2D["ellipse_true_support_min_dist"] = 2.5
+
 
         self.detectProperties3D = {}
         self.detectProperties3D["edge_number"] = 20
@@ -107,14 +129,14 @@ cdef class Detector_3D:
         self.detectProperties3D["iteration_numbers"] = [10, 20, 20, 20, 500]
         self.detectProperties3D["residuals_averaged_fraction"] = 0.8
         self.detectProperties3D["outlier_factor"] = 7.0
-        self.detectProperties3D["start_remove_number"] = 25
+        self.detectProperties3D["start_remove_number"] = 5000
         self.detectProperties3D["cauchy_loss_scale"] = 0.001
         self.detectProperties3D["eyeball_radius"] = 12.0
         self.detectProperties3D["cornea_radius"] = 7.8
         self.detectProperties3D["iris_radius"] = 6.0
         self.detectProperties3D["n_ref"] = 1.3375
         self.detectProperties3D["run_mode"] = REFRACTION
-
+        self.detectProperties3D["pars_to_optimize"] = [1,1,1]
 
     def get_settings(self):
         return {'2D_Settings': self.detectProperties2D , '3D_Settings' : self.detectProperties3D }
@@ -133,7 +155,7 @@ cdef class Detector_3D:
     def detectProperties3D_setter(self, dict_):
         self.detectProperties3D = dict_
 
-    cdef detect2D(self, frame, user_roi, visualize):
+    def detect2D(self, frame, user_roi, visualize):
         image_width = frame.width
         image_height = frame.height
 
@@ -199,12 +221,12 @@ cdef class Detector_3D:
         # All coordinates in the result are relative to the current ROI
         # We don't use debug image in 3d model
         self.Result2D_ptr =  self.detector2DPtr.detect(self.detectProperties2D,
-                                                                cv_image,
-                                                                cv_image_color,
-                                                                debug_image,
-                                                                Rect_[int](roi_x, roi_y, roi_width, roi_height),
-                                                                visualize,
-                                                                False)
+                                                        cv_image,
+                                                        cv_image_color,
+                                                        debug_image,
+                                                        Rect_[int](roi_x, roi_y, roi_width, roi_height),
+                                                        visualize,
+                                                        False)
 
     def detect(self, frame, user_roi, visualize):
         # 2D model part
@@ -249,13 +271,14 @@ cdef class Detector_3D:
 
         return pyResult
 
-    def add_observation(self, frame, user_roi, visualize, confidence_threshold=-1):
+    def add_observation(self, frame, user_roi, visualize, confidence_threshold=0.9):
         # 2D model part
         self.detect2D(frame, user_roi, visualize) # Pointer to result is stored in self.Result2D_ptr
         deref(self.Result2D_ptr).timestamp = frame.timestamp # The timestamp is not set elsewhere but it is needed in detector3D
         if deref(self.Result2D_ptr).confidence > confidence_threshold:
             return self.detector3DPtr.addObservation(self.Result2D_ptr, 1)
         else:
+            print("Not adding pupil!")
             return -1
 
     def reset_3D_Model(self):

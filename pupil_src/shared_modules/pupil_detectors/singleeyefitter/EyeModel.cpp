@@ -480,7 +480,7 @@ EyeModel::Sphere EyeModel::initialiseModel(const Detector3DProperties& props)
             // center and pupil circle center, these should intersect,
             // otherwise find the nearest point to both lines)
             Vector3 pupilCenter = nearest_intersect(Line3(sphere.center, pupil.mCircle.normal),
-                                   Line3(mCameraCenter, pupil.mCircle.center.normalized()));
+                                  Line3(mCameraCenter, pupil.mCircle.center.normalized()));
             auto distance = (pupilCenter - sphere.center).norm();
             eyeRadiusAcc += distance;
             ++eyeRadiusCount;
@@ -490,7 +490,23 @@ EyeModel::Sphere EyeModel::initialiseModel(const Detector3DProperties& props)
     // Set the eye radius as the mean distance from pupil centers to eye center
     sphere.radius = eyeRadiusAcc / eyeRadiusCount;
 
-    for ( auto& pupil : mSupportingPupils) {
+    if (std::isnan(sphere.center[0])||
+        std::isnan(sphere.center[0])||
+        std::isnan(sphere.center[0])||
+        std::isnan(sphere.radius)||
+        std::isnan(-sphere.center[0])||
+        std::isnan(-sphere.center[0])||
+        std::isnan(-sphere.center[0])||
+        std::isnan(-sphere.radius)){
+
+        sphere.center[0]=0;
+        sphere.center[0]=0;
+        sphere.center[0]=35;
+        sphere.center[0]=10;
+
+    }
+
+    for (auto& pupil : mSupportingPupils) {
         if (pupil.ceres_toggle<props.strikes){
             initialiseSingleObservation(sphere, pupil);
         }
@@ -540,24 +556,25 @@ Detector3DResultRefraction EyeModel::optimize(bool initialization_toggle, const 
             sphere = mSphere;
         }
 
-        double fit;
+        double final_cost;
         switch(props.run_mode){
             case SWIRSKI:
-                fit = refineWithEdgesSwirski(sphere, props);
+                final_cost = refineWithEdgesSwirski(sphere, props);
                 break;
             case REFRACTION:
-                fit = refineWithEdgesRefraction(sphere, props);
+                final_cost = refineWithEdgesRefraction(sphere, props);
                 break;
             case REFRACTION_APPROXIMATE:
-                fit = refineWithEdgesRefraction(sphere, props);
+                final_cost = refineWithEdgesRefraction(sphere, props);
                 break;
             default:
-                fit = refineWithEdgesRefraction(sphere, props);
+                final_cost = refineWithEdgesRefraction(sphere, props);
                 break;
         }
 
         mSphere = sphere;
-        mSolverFit = fit;
+        mSolverFit = final_cost;
+        mResult.cost = final_cost;
         mResult.initial_center[0] = mInitialSphere.center[0];
         mResult.initial_center[1] = mInitialSphere.center[1];
         mResult.initial_center[2] = mInitialSphere.center[2];
@@ -607,17 +624,18 @@ double EyeModel::refineWithEdgesRefraction(Sphere& sphere, const Detector3DPrope
     std::vector<double*> all_par_blocks;
     std::vector<Pupil*> used_pupils;
 
+
     int i=0;
     for (auto& pupil: mSupportingPupils){
 
         // ONLY ADD NEW PUPILS TO THE PROBLEM THAT HAVE NOT BEEN OUTLIERS FOR props.strikes TIMES
         if (pupil.ceres_toggle<props.strikes){
 
-            used_pupils.push_back(&pupil);
-
             const auto& pupilInliers = pupil.mObservationPtr->getObservation2D()->final_edges;
             const Ellipse& ellipse = pupil.mObservationPtr->getObservation2D()->ellipse;
             const cv::Point ellipse_center(ellipse.center[0], ellipse.center[1]);
+
+            used_pupils.push_back(&pupil);
 
             if (props.edge_number==-1){
                 N_ = pupilInliers.size();
@@ -631,6 +649,7 @@ double EyeModel::refineWithEdgesRefraction(Sphere& sphere, const Detector3DPrope
             pupil.mResidualBlockId = problem.AddResidualBlock(current_cost, new ceres::CauchyLoss(props.cauchy_loss_scale), &eye_params[0],  &eye_params[1],  &eye_params[2], &eye_params[3], &(pupil.optimizedParams[0]));
             all_par_blocks.push_back(pupil.optimizedParams);
 
+
             // NEEDED FOR DEBUGGING
             //temp_circles.push_back(selectUnprojectedCircle(mSphere, pupil.mObservationPtr->getUnprojectedCirclePair()));
             //temp_ellipses.push_back(ellipse);
@@ -643,10 +662,13 @@ double EyeModel::refineWithEdgesRefraction(Sphere& sphere, const Detector3DPrope
 //                temp_edge_map[i].push_back(v);
 //            }
 
-            i++;
+
 
         }
-    }
+
+        i++;
+
+        }
 
 
     //SAVE ALL RESIDUALBLOCK-IDS IN A VECTOR
@@ -654,8 +676,6 @@ double EyeModel::refineWithEdgesRefraction(Sphere& sphere, const Detector3DPrope
     problem.GetResidualBlocks(&residualblock_vector);
 
     // SETTING BOUNDS - Z-POSITION OF SPHERE
-
-
     problem.SetParameterLowerBound(&eye_params[2], 0, 25.0);
     problem.SetParameterUpperBound(&eye_params[2], 0, 60.0);
 
@@ -755,6 +775,8 @@ double EyeModel::refineWithEdgesRefraction(Sphere& sphere, const Detector3DPrope
     ceres::Solver::Summary summary;
 
     //SETTING EYE GEOMETRY CONSTANT
+    problem.SetParameterBlockConstant(&eye_params[0]);
+    problem.SetParameterBlockConstant(&eye_params[1]);
     problem.SetParameterBlockConstant(&eye_params[2]);
     problem.SetParameterBlockConstant(&eye_params[3]);
 
@@ -769,6 +791,9 @@ double EyeModel::refineWithEdgesRefraction(Sphere& sphere, const Detector3DPrope
         problem.GetParameterBlocksForResidualBlock(rb, &par_blocks);
         problem.SetParameterBlockConstant(par_blocks[4]);
     }
+    if (props.pars_to_optimize[0]) problem.SetParameterBlockVariable(&eye_params[0]);
+    if (props.pars_to_optimize[1]) problem.SetParameterBlockVariable(&eye_params[1]);
+    if (props.pars_to_optimize[2]) problem.SetParameterBlockVariable(&eye_params[2]);
     ceres::Solve(options, &problem, &summary);
 
     // RUNNING SOLVER ->  ROUGH OPTIMIZATION PUPILS
@@ -787,9 +812,9 @@ double EyeModel::refineWithEdgesRefraction(Sphere& sphere, const Detector3DPrope
     // RUNNING SOLVER -> ALL PARAMS FREE
     center_weight = props.center_weight_initial;
     options.max_num_iterations =  props.iteration_numbers[2];
-    problem.SetParameterBlockVariable(&eye_params[0]);
-    problem.SetParameterBlockVariable(&eye_params[1]);
-    problem.SetParameterBlockVariable(&eye_params[2]); //HERE WE CAN FIX THE z POSITION!
+    if (props.pars_to_optimize[0]) problem.SetParameterBlockVariable(&eye_params[0]);
+    if (props.pars_to_optimize[1]) problem.SetParameterBlockVariable(&eye_params[1]);
+    if (props.pars_to_optimize[2]) problem.SetParameterBlockVariable(&eye_params[2]);
     ceres::Solve(options, &problem, &summary);
 
     // RUNNING SOLVER -> CENTER_WEIGHT TO ZERO
@@ -963,11 +988,11 @@ double EyeModel::refineWithEdgesSwirski(Sphere& sphere, const Detector3DProperti
             const auto& pupilInliers = mSupportingPupils[i].mObservationPtr->getObservation2D()->final_edges;
 
             problem.AddResidualBlock(
-                new ceres::AutoDiffCostFunction<EllipseDistanceResidualFunction<double>, ceres::DYNAMIC, 3, 3>(
+                new ceres::AutoDiffCostFunction<EllipseDistanceResidualFunction<double>, ceres::DYNAMIC, 1, 1, 1, 3>(
                 new EllipseDistanceResidualFunction<double>(pupilInliers, sphere.radius, mFocalLength),
                 pupilInliers.size()
                 ),
-                NULL, &x[0], &x[3 + 3 * i]);
+                NULL, &x[0], &x[1], &x[2], &x[3 + 3 * i]);
         }
     }
 
@@ -976,7 +1001,8 @@ double EyeModel::refineWithEdgesSwirski(Sphere& sphere, const Detector3DProperti
     options.max_num_iterations = 400;
     options.function_tolerance = 1e-10;
     options.minimizer_progress_to_stdout = false;
-    options.update_state_every_iteration = false;
+    options.update_state_every_iteration = true;
+
     // if (callback) {
     //     struct CallCallbackWrapper : public ceres::IterationCallback
     //     {
@@ -1004,7 +1030,11 @@ double EyeModel::refineWithEdgesSwirski(Sphere& sphere, const Detector3DProperti
     //     };
     //     options.callbacks.push_back(new CallCallbackWrapper(*this, callback, x));
     // }
+
     ceres::Solver::Summary summary;
+    if (props.pars_to_optimize[0]==0) problem.SetParameterBlockConstant(&x[0]);
+    if (props.pars_to_optimize[1]==0) problem.SetParameterBlockConstant(&x[1]);
+    if (props.pars_to_optimize[2]==0) problem.SetParameterBlockConstant(&x[2]);
     ceres::Solve(options, &problem, &summary);
 
     sphere.center = x.segment<3>(0);
@@ -1021,7 +1051,10 @@ double EyeModel::refineWithEdgesSwirski(Sphere& sphere, const Detector3DProperti
 //    fit /= mSupportingPupils.size();
 
 
-    return 0.0;
+    std::cout<<summary.final_cost<<std::endl;
+    mResult.number_of_pupils = problem.NumResidualBlocks();
+
+    return summary.final_cost;
 
 }
 
@@ -1136,17 +1169,22 @@ Detector3DResult EyeModel::predictSingleObservation(std::shared_ptr<Detector2DRe
         const Circle& unprojectedCircle = selectUnprojectedCircle(mSphere, newObservationPtr->getUnprojectedCirclePair());
         circle = getInitialCircle(mSphere, unprojectedCircle);
         std::pair<PupilParams, double> prediction;
+        std::cout<<props.run_mode<<std::endl;
         switch(props.run_mode){
             case SWIRSKI:
+                std::cout<<"SWIRSKI"<<std::endl;
                 prediction  = predictSwirski(mSphere, circle, newObservationPtr, props);
                 break;
             case REFRACTION:
+                std::cout<<"REFRACTION"<<std::endl;
                 prediction  = predictRefraction(mSphere, circle, newObservationPtr, props);
                 break;
             case REFRACTION_APPROXIMATE:
+                std::cout<<"REFRACTION_APPROXIMATE"<<std::endl;
                 prediction  = predictRefractionApproximate(mSphere, circle, newObservationPtr, props);
                 break;
             default:
+                 std::cout<<"DEFAULT"<<std::endl;
                  prediction  = predictRefractionApproximate(mSphere, circle, newObservationPtr, props);
         }
         if (prediction.second<0){ //TODO WORKAROUND for predictSwirksi
@@ -1171,7 +1209,6 @@ Detector3DResult EyeModel::predictSingleObservation(std::shared_ptr<Detector2DRe
         result.modelBirthTimestamp = getBirthTimestamp();
 
         return result;
-
 
 }
 
