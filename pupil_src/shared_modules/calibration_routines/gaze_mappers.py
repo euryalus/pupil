@@ -98,7 +98,11 @@ class Binocular_Gaze_Mapper_Base(Gaze_Mapping_Plugin):
             self._caches[p['id']].append(p)
 
         if self._caches[0] and self._caches[1]:
+
             # we have binocular data
+            # p0 = self._caches[0].popleft()
+            # p1 = self._caches[1].popleft()
+
             if self._caches[0][0]['timestamp'] < self._caches[1][0]['timestamp']:
                 p0 = self._caches[0].popleft()
                 p1 = self._caches[1][0]
@@ -111,6 +115,7 @@ class Binocular_Gaze_Mapper_Base(Gaze_Mapping_Plugin):
             if abs(p0['timestamp'] - p1['timestamp']) < self.temportal_cutoff:
                 gaze_datum = self._map_binocular(p0,p1)
             else:
+                #raise Exception()
                 gaze_datum = self._map_monocular(older_pt)
 
         elif len(self._caches[0]) > self.sample_cutoff:

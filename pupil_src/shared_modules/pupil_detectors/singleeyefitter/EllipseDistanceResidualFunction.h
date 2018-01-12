@@ -6,6 +6,7 @@
 #include "geometry/Sphere.h"
 #include "geometry/Ellipse.h"
 #include "EllipseDistanceApproxCalculator.h"
+#include "DistancePointEllipse.h"
 #include "utils.h"
 
 namespace singleeyefitter{
@@ -29,6 +30,8 @@ class EllipseDistanceResidualFunction {
             for (int i = 0; i < edges.size(); ++i) {
                 const cv::Point& inlier = edges[i];
                 e[i] = ellipDist(Const(inlier.x), Const(inlier.y));
+//                e[i] = DistancePointEllipse<T>(pupil_ellipse, T(inlier.x), T(inlier.y));  //THIS IS THE NON-APPROXIMATE VERSION
+
             }
 
             return true;

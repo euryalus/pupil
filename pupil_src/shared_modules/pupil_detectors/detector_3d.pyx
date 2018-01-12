@@ -122,24 +122,24 @@ cdef class Detector_3D:
 
 
         self.detectProperties3D = {}
-        self.detectProperties3D["edge_number"] = 20
+        self.detectProperties3D["edge_number"] = -1
         self.detectProperties3D["strikes"] = 2
-        self.detectProperties3D["center_weight_initial"] = 4.0
+        self.detectProperties3D["center_weight_initial"] = 10.0
         self.detectProperties3D["center_weight_final"] = 0.0
         self.detectProperties3D["iteration_numbers"] = [10, 20, 20, 20, 500]
         self.detectProperties3D["residuals_averaged_fraction"] = 0.8
         self.detectProperties3D["outlier_factor"] = 7.0
-        self.detectProperties3D["start_remove_number"] = 5000
+        self.detectProperties3D["start_remove_number"] = 500
         self.detectProperties3D["cauchy_loss_scale"] = 0.001
         self.detectProperties3D["eyeball_radius"] = 12.0
-        self.detectProperties3D["cornea_radius"] = 7.8
+        self.detectProperties3D["cornea_radius"] = 7.5
         self.detectProperties3D["iris_radius"] = 6.0
         self.detectProperties3D["n_ref"] = 1.3375
-        self.detectProperties3D["run_mode"] = REFRACTION
-        self.detectProperties3D["pars_to_optimize"] = [1,1,1]
+        self.detectProperties3D["run_mode"] = SWIRSKI
+        self.detectProperties3D["pars_to_optimize"] = [1, 1, 1]
 
     def get_settings(self):
-        return {'2D_Settings': self.detectProperties2D , '3D_Settings' : self.detectProperties3D }
+        return {'2D_Settings': self.detectProperties2D , '3D_Settings' : self.detectProperties3D}
 
     def on_resolution_change(self, old_size, new_size):
         self.detectProperties2D["pupil_size_max"] *= new_size[0] / old_size[0]

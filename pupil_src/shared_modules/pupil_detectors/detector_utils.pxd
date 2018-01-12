@@ -44,7 +44,9 @@ cdef inline convertTo3DPythonRefractionResult( Detector3DResultRefraction& resul
 
     py_result['resFit'] = result.resFit
     py_result['initial_center'] = result.initial_center
+    py_result['initial_center'][1] *= -1
     py_result['optimized_center'] = result.optimized_center
+    py_result['optimized_center'][1] *= -1
     py_result['cost'] = result.cost
     py_result['number_of_pupils'] = result.number_of_pupils
     #py_result['par_history'] = np.array(result.par_history)
@@ -78,7 +80,7 @@ cdef inline convertTo3DPythonRefractionResult( Detector3DResultRefraction& resul
 
     return py_result
 
-cdef inline convertTo3DPythonResult( Detector3DResult& result, object frame    ):
+cdef inline convertTo3DPythonResult(Detector3DResult& result, object frame):
 
     #use negative z-coordinates to get from left-handed to right-handed coordinate system
     py_result = {}

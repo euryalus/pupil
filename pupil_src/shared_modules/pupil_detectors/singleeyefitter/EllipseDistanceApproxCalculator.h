@@ -28,7 +28,7 @@ namespace singleeyefitter {
             {
                 using std::sin;
                 using std::cos;
-                rA << r* cos(ellipse.angle) / ellipse.major_radius, r* sin(ellipse.angle) / ellipse.major_radius,
+                rA << r * cos(ellipse.angle) / ellipse.major_radius, r* sin(ellipse.angle) / ellipse.major_radius,
                 -r* sin(ellipse.angle) / ellipse.minor_radius, r* cos(ellipse.angle) / ellipse.minor_radius;
                 rAt = rA * ellipse.center;
             }

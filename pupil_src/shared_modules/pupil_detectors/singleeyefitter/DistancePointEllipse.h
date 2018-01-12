@@ -25,19 +25,23 @@ namespace singleeyefitter {
     template <class Real, class Array>
     Real DistancePointEllipseSpecial(Real a, Real b, const Array& p, Eigen::Matrix<Real, 2, 1>& x)
     {
+
         Real distance;
 
         if (p.y() > Real(0)) {
             if (p.x() > Real(0)) {
+
                 // Bisect to compute the root of F(t) for t >= -e1*e1.
                 Eigen::Array<Real, 2, 1> esqr(a * a, b * b);
                 Eigen::Array<Real, 2, 1> ep(a * p.x(), b * p.y());
                 Real t0 = -esqr.y() + ep.y();
                 Real t1 = -esqr.y() + ep.matrix().norm();
                 Real t = t0;
-                const int imax = 2 * std::numeric_limits<Real>::max_exponent;
+
+                const int imax = 2048 ;     //2 * std::numeric_limits<Real>::max_exponent;
 
                 for (int i = 0; i < imax; ++i) {
+
                     t = Real(0.5) * (t0 + t1);
 
                     if (t == t0 || t == t1) {
@@ -59,12 +63,15 @@ namespace singleeyefitter {
                 }
 
                 x = esqr * p / (t + esqr);
+
                 distance = (x - p.matrix()).norm();
 
             } else { // y0 == 0
                 x[0] = (Real) 0;
                 x[1] = b;
-                distance = fabs(p.y() - b);
+                //distance = fabs(p.y() - b);
+                distance = ceres::abs(p.y() - b);
+
             }
 
         } else { // y1 == 0
@@ -76,7 +83,8 @@ namespace singleeyefitter {
                 Real x0de0 = e0y0 / denom0;
                 Real x0de0sqr = x0de0 * x0de0;
                 x[0] = a * x0de0;
-                x[1] = b * sqrt(fabs(Real(1) - x0de0sqr));
+                //x[1] = b * sqrt(fabs(Real(1) - x0de0sqr));
+                x[1] = b * sqrt(ceres::abs(Real(1) - x0de0sqr));
                 Real d0 = x[0] - p.x();
                 distance = sqrt(d0 * d0 + x[1] * x[1]);
 
@@ -85,7 +93,10 @@ namespace singleeyefitter {
                 // x1 == 0 and is on the domain-boundary interval (x0/e0)^2 = 1.
                 x[0] = a;
                 x[1] = Real(0);
-                distance = fabs(p.x() - a);
+                //distance = fabs(p.x() - a);
+                distance = ceres::abs(p.x() - a);
+
+
             }
         }
 
@@ -165,7 +176,7 @@ namespace singleeyefitter {
         Eigen::Matrix<Scalar, 2, 1> Ap_pos = Ap;
 
         for (int i = 0; i < 2; ++i) {
-            if (Ap[i] < 0) { Ap_pos[i] = -Ap_pos[i]; }
+            if (Ap[i] < 0.0) { Ap_pos[i] = -Ap_pos[i]; }
         }
 
         assert(ellipse.major_radius > ellipse.minor_radius);
@@ -174,7 +185,7 @@ namespace singleeyefitter {
 
         // Flip signs back
         for (int i = 0; i < 2; ++i) {
-            if (Ap[i] < 0) { el_x[i] = -el_x[i]; }
+            if (Ap[i] < 0.0) { el_x[i] = -el_x[i]; }
         }
 
         return distance;

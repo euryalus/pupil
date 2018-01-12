@@ -1169,22 +1169,22 @@ Detector3DResult EyeModel::predictSingleObservation(std::shared_ptr<Detector2DRe
         const Circle& unprojectedCircle = selectUnprojectedCircle(mSphere, newObservationPtr->getUnprojectedCirclePair());
         circle = getInitialCircle(mSphere, unprojectedCircle);
         std::pair<PupilParams, double> prediction;
-        std::cout<<props.run_mode<<std::endl;
+        //std::cout<<props.run_mode<<std::endl;
         switch(props.run_mode){
             case SWIRSKI:
-                std::cout<<"SWIRSKI"<<std::endl;
+                //std::cout<<"SWIRSKI"<<std::endl;
                 prediction  = predictSwirski(mSphere, circle, newObservationPtr, props);
                 break;
             case REFRACTION:
-                std::cout<<"REFRACTION"<<std::endl;
+                //std::cout<<"REFRACTION"<<std::endl;
                 prediction  = predictRefraction(mSphere, circle, newObservationPtr, props);
                 break;
             case REFRACTION_APPROXIMATE:
-                std::cout<<"REFRACTION_APPROXIMATE"<<std::endl;
+                //std::cout<<"REFRACTION_APPROXIMATE"<<std::endl;
                 prediction  = predictRefractionApproximate(mSphere, circle, newObservationPtr, props);
                 break;
             default:
-                 std::cout<<"DEFAULT"<<std::endl;
+                 //std::cout<<"DEFAULT"<<std::endl;
                  prediction  = predictRefractionApproximate(mSphere, circle, newObservationPtr, props);
         }
         if (prediction.second<0){ //TODO WORKAROUND for predictSwirksi
