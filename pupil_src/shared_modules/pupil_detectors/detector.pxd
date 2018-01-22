@@ -202,7 +202,7 @@ cdef extern from 'detect_2d.hpp':
   cdef cppclass Detector2D:
 
     Detector2D() except +
-    shared_ptr[Detector2DResult] detect( Detector2DProperties& prop, Mat& image, Mat& color_image, Mat& debug_image, Rect_[int]& roi, bint visualize , bint use_debug_image )
+    shared_ptr[Detector2DResult] detect( Detector2DProperties& prop, Mat& image, Mat& color_image, Mat& debug_image, Rect_[int]& roi, bint visualize , bint use_debug_image)
 
 
 cdef extern from "singleeyefitter/EyeModel.h" namespace "singleeyefitter":

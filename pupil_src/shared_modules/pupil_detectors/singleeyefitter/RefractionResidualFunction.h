@@ -328,12 +328,12 @@ class RefractionResidualFunction
 
             for (int i = 0; i < N; ++i) {
                 upprojected_edge = map_to_tangent_space<T>(internal_edges[i], &sphere_center[0], &extended_eye_param[0], pupil_param, focal_length, n_ref);
-                e[i] = (r - (p_center-upprojected_edge).norm())/sphere_center.norm();
+                e[i] = (r - (p_center-upprojected_edge).norm())/p_center.norm(); //sphere_center.norm();
 
             }
 
             upprojected_edge = map_to_tangent_space<T>(ellipse_center, &sphere_center[0], &extended_eye_param[0], pupil_param, focal_length, n_ref);
-            e[N] = T(*lambda_2)*(p_center-upprojected_edge).norm()/sphere_center.norm();
+            e[N] = T(*lambda_2)*(p_center-upprojected_edge).norm()/p_center.norm(); //sphere_center.norm();
 
             return true;
         }

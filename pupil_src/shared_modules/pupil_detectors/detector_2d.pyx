@@ -91,7 +91,7 @@ cdef class Detector_2D:
     def __dealloc__(self):
       del self.thisptr
 
-    def detect(self, frame_, user_roi, visualize, pause_video = False ):
+    def detect(self, frame_, user_roi, visualize, pause_video = False, edges=False, contour_cv2=False):
 
         image_width = frame_.width
         image_height = frame_.height
@@ -173,9 +173,39 @@ cdef class Detector_2D:
         # every coordinates in the result are relative to the current ROI
         cppResultPtr =  self.thisptr.detect(self.detectProperties, frame, frameColor, debugImage, Rect_[int](roi_x,roi_y,roi_width,roi_height),  visualize , use_debugImage )
 
-        py_result = convertTo2DPythonResult( deref(cppResultPtr), frame_ , roi )
+        cdef Point_[int] p_
+        cdef Edges2D cv2_edges
+
+        if contour_cv2:
+
+            img_ = frame_.gray.astype(int)
+            n,m = img_.shape
+            img_ = ((img_ < 0.01).astype(np.uint8) * 255)
+
+            ret1, thresh1 = cv2.threshold(img_, 140, 255, 0)
+            contours1 = cv2.findContours(thresh1, 1, 1)
+            c1_ = contours1[1][0]
+            c1_.shape = c1_.shape[::2]
+            c1_ = [p for p in c1_ if (2<p[1]<n-3 and 2<p[0]<m-3)]
+
+            ret2, thresh2 = cv2.threshold(img_, 140, 255, 1)
+            contours2 = cv2.findContours(thresh2, 1, 1)
+            c2_ = contours2[1][0]
+            c2_.shape = c2_.shape[::2]
+            c2_ = [p for p in c2_ if (2<p[1]<n-3 and 2<p[0]<m-3)]
+
+            for p in c1_+c2_:
+
+                p_.x = p[0]
+                p_.y = p[1]
+                cv2_edges.push_back(p_)
+
+            deref(cppResultPtr).final_edges = cv2_edges
+
+        py_result = convertTo2DPythonResult(deref(cppResultPtr), frame_ , roi, edges=edges)
 
         return py_result
+
 
     @property
     def pretty_class_name(self):

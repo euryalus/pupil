@@ -18,7 +18,7 @@ cdef extern from 'singleeyefitter/mathHelper.h' namespace 'singleeyefitter::math
 
     Matrix21d cart2sph( Matrix31d& m )
 
-cdef inline convertTo2DPythonResult( Detector2DResult& result, object frame, object roi ):
+cdef inline convertTo2DPythonResult( Detector2DResult& result, object frame, object roi, edges):
 
     ellipse = {}
     ellipse['center'] = (result.ellipse.center[0],result.ellipse.center[1])
@@ -35,6 +35,9 @@ cdef inline convertTo2DPythonResult( Detector2DResult& result, object frame, obj
     py_result['norm_pos'] = norm_center
     py_result['timestamp'] = frame.timestamp
     py_result['method'] = '2d c++'
+
+    if edges:
+        py_result['final_edges'] = getEdges2D(result)
 
     return py_result
 
@@ -178,6 +181,14 @@ cdef inline getBinPositions( ModelDebugProperties& result ):
     for point in result.binPositions:
         positions.append([point[0]*eyeRadius+eyePosition[0],point[1]*eyeRadius+eyePosition[1],point[2]*eyeRadius+eyePosition[2]])
     return positions
+
+cdef inline getEdges2D( Detector2DResult& result ):
+    if result.final_edges.size() == 0:
+        return []
+    edges = []
+    for point in result.final_edges:
+        edges.append([point.x,point.y])
+    return edges
 
 cdef inline getEdges( Detector3DResult& result ):
     if result.edges.size() == 0:

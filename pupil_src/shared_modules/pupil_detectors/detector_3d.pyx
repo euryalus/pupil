@@ -124,8 +124,8 @@ cdef class Detector_3D:
         self.detectProperties3D = {}
         self.detectProperties3D["edge_number"] = -1
         self.detectProperties3D["strikes"] = 2
-        self.detectProperties3D["center_weight_initial"] = 10.0
-        self.detectProperties3D["center_weight_final"] = 0.0
+        self.detectProperties3D["center_weight_initial"] = 0.0
+        self.detectProperties3D["center_weight_final"] = 10.0
         self.detectProperties3D["iteration_numbers"] = [10, 20, 20, 20, 500]
         self.detectProperties3D["residuals_averaged_fraction"] = 0.8
         self.detectProperties3D["outlier_factor"] = 7.0
@@ -155,7 +155,7 @@ cdef class Detector_3D:
     def detectProperties3D_setter(self, dict_):
         self.detectProperties3D = dict_
 
-    def detect2D(self, frame, user_roi, visualize):
+    def detect2D(self, frame, user_roi, visualize, contour_cv2=False):
         image_width = frame.width
         image_height = frame.height
 
@@ -228,6 +228,36 @@ cdef class Detector_3D:
                                                         visualize,
                                                         False)
 
+        cdef Point_[int] p_
+        cdef Edges2D cv2_edges
+
+        if contour_cv2:
+
+            img_ = frame.gray.astype(int)
+            n,m = img_.shape
+            img_ = ((img_ < 0.01).astype(np.uint8) * 255)
+
+            ret1, thresh1 = cv2.threshold(img_, 140, 255, 0)
+            contours1 = cv2.findContours(thresh1, 1, 1)
+            c1_ = contours1[1][0]
+            c1_.shape = c1_.shape[::2]
+            c1_ = [p for p in c1_ if (2<p[1]<n-3 and 2<p[0]<m-3)]
+
+            ret2, thresh2 = cv2.threshold(img_, 140, 255, 1)
+            contours2 = cv2.findContours(thresh2, 1, 1)
+            c2_ = contours2[1][0]
+            c2_.shape = c2_.shape[::2]
+            c2_ = [p for p in c2_ if (2<p[1]<n-3 and 2<p[0]<m-3)]
+
+            for p in c1_+c2_:
+
+                p_.x = p[0]
+                p_.y = p[1]
+                cv2_edges.push_back(p_)
+
+            deref(self.Result2D_ptr).final_edges = cv2_edges
+
+
     def detect(self, frame, user_roi, visualize):
         # 2D model part
         self.detect2D(frame, user_roi, visualize) # Pointer to result is stored in self.Result2D_ptr
@@ -260,9 +290,9 @@ cdef class Detector_3D:
 
         return np.array([sphere.center[0],sphere.center[1],sphere.center[2]])
 
-    def predict(self, frame, user_roi, visualize):
+    def predict(self, frame, user_roi, visualize, contour_cv2=False):
         # 2D model part
-        self.detect2D(frame, user_roi, visualize) # Pointer to result is stored in self.Result2D_ptr
+        self.detect2D(frame, user_roi, visualize, contour_cv2=contour_cv2) # Pointer to result is stored in self.Result2D_ptr
         deref(self.Result2D_ptr).timestamp = frame.timestamp # The timestamp is not set elsewhere but it is needed in detector3D
 
         # 3D model part
@@ -271,9 +301,9 @@ cdef class Detector_3D:
 
         return pyResult
 
-    def add_observation(self, frame, user_roi, visualize, confidence_threshold=0.9):
+    def add_observation(self, frame, user_roi, visualize, confidence_threshold=0.9, contour_cv2=False):
         # 2D model part
-        self.detect2D(frame, user_roi, visualize) # Pointer to result is stored in self.Result2D_ptr
+        self.detect2D(frame, user_roi, visualize, contour_cv2=contour_cv2) # Pointer to result is stored in self.Result2D_ptr
         deref(self.Result2D_ptr).timestamp = frame.timestamp # The timestamp is not set elsewhere but it is needed in detector3D
         if deref(self.Result2D_ptr).confidence > confidence_threshold:
             return self.detector3DPtr.addObservation(self.Result2D_ptr, 1)
