@@ -15,7 +15,9 @@
 
 #include "EllipseDistanceApproxCalculator.h"
 #include "EllipseDistanceResidualFunction.h"
-#include "RefractionResidualFunction.h"
+#include "RefractionResidualFunction_V2.h"
+//#include "RefractionResidualFunction.h"
+
 
 #include "CircleDeviationVariance3D.h"
 #include "CircleEvaluation3D.h"
@@ -167,11 +169,12 @@ std::pair<Circle, double> EyeModel::presentObservation(const ObservationPtr newO
 
         // we are initiliasing by looking for the closest point on the sphere and scaling the radius appropriately
         circle = getInitialCircle(mSphere, unprojectedCircle);
+        std::cout<<circle<<std::endl;
 
         std::pair<PupilParams, double> refraction_result;
         switch(props.run_mode){
                 case SWIRSKI:
-                    refraction_result = predictSwirski(mSphere, circle, newObservationPtr, props);
+                    refraction_result = predictSwirski(mSphere, unprojectedCircle, newObservationPtr, props);
                     break;
                 case REFRACTION:
                     refraction_result = predictRefraction(mSphere, circle, newObservationPtr, props);
@@ -1168,6 +1171,8 @@ Detector3DResult EyeModel::predictSingleObservation(std::shared_ptr<Detector2DRe
         Circle circle;
         const Circle& unprojectedCircle = selectUnprojectedCircle(mSphere, newObservationPtr->getUnprojectedCirclePair());
         circle = getInitialCircle(mSphere, unprojectedCircle);
+        std::cout<<circle<<std::endl;
+
         std::pair<PupilParams, double> prediction;
         //std::cout<<props.run_mode<<std::endl;
         switch(props.run_mode){

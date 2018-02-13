@@ -19,7 +19,7 @@
 namespace singleeyefitter{
 
 template<typename T>
-Eigen::Matrix<T, 3, 1> map_to_tangent_space(const cv::Point& inlier,
+std::pair<int,Eigen::Matrix<T, 3, 1>> map_to_tangent_space(const cv::Point& inlier,
                             const T* const eye_center,
                             const T* const eye_param,
                             const T* const pupil_param,
@@ -154,11 +154,7 @@ Eigen::Matrix<T, 3, 1> map_to_tangent_space(const cv::Point& inlier,
                     case 2: //INTERSECTION WITH EYEBALL
 
                         lcc = ray_center + d * ray_direction;
-                        distance = (p_center-lcc).norm();
-
-                        upprojected_edge  = lcc  - ( lcc - p_center ).dot( p_normal )*p_normal;
-                        tangent_plane_delta = upprojected_edge - p_center;
-                        upprojected_edge = p_center + distance*tangent_plane_delta.normalized();
+                        upprojected_edge = lcc;
 
                         break;
 
@@ -193,78 +189,15 @@ Eigen::Matrix<T, 3, 1> map_to_tangent_space(const cv::Point& inlier,
 
                     case 0: //NEAREST POINT ON EYEBALL
 
-                        //CLOSEST POINT TO EYEBALL
                         temp3 = sphere_center;
-                        //temp3 = cornea_center;
                         temp5 = ray_direction.dot(temp3);
-                        temp4 = ray_center + temp5 * ray_direction; // CLOSEST POINT ON RAY
-
-                        distance = (temp4-sphere_center).norm();
-                        //distance = (temp4-cornea_center).norm();
-
-                        T p = - p_normal.dot(p_center);
-
-                        Vector3 normal = (ray_direction.cross(sphere_center)).normalized();
-                        //Vector3 normal = (ray_direction.cross(cornea_center)).normalized();
-                        Vector3 point;
-                        point[0] = T(0.0);
-                        point[1] = T(0.0);
-                        point[2] = T(0.0);
-
-                        Vector3 a = p_normal.cross(normal);
-                        Vector3 x0;
-                        x0[0] =  p * normal[1]/(p_normal[1]*normal[0]-normal[1]*p_normal[0]);
-                        x0[1] = -p * normal[0]/(p_normal[1]*normal[0]-normal[1]*p_normal[0]);
-                        x0[2] = T(0.0);
-
-                        Vector3 b = x0-sphere_center;
-                        //Vector3 b = x0-cornea_center;
-
-                        T A = pow(a.norm(),2);
-                        T B = 2.0*a.dot(b);
-                        T C = pow(b.norm(),2);
-
-                        if( pow( B, 2 ) / ( 4.0*pow(A,2) ) - (C-pow(distance,2))/A < 0.0 ){
-                            //std::cout<<"Case 0 is failing!"<<std::endl;
+                        temp4 = ray_center + temp5 * ray_direction;
                         upprojected_edge = temp4;
-                        type_ = 4;
-                        break;
-                        }
-
-                        T t1 = -B/(2.0*A) + sqrt( pow( B, 2 ) / ( 4.0*pow(A,2) ) - (C-pow(distance,2))/A);
-                        T t2 = -B/(2.0*A) - sqrt( pow( B,2 ) / ( 4.0*pow(A,2) ) - (C-pow(distance,2))/A);
-
-
-                        Vector3 p1 = x0+t1*a;
-                        Vector3 p2 = x0+t2*a;
-
-                        if (p1[2]>p2[2]){
-                            upprojected_edge = p1;
-                        }else{
-                            upprojected_edge = p2;
-                        }
-
-//                        //CLOSEST POINT TO EYEBALL
-//                        temp3 = sphere_center;
-//                        temp5 = ray_direction.dot(temp3);
-//                        temp4 = ray_center + temp5 * ray_direction; // CLOSEST POINT ON RAY
-
-//                        //CLOSEST POINT ON EYEBALL
-//                        temp3 = (temp4 - sphere_center).normalized();
-//                        lcc = sphere_center + re * temp3; // CLOSEST POINT ON EYEBALL
-
-//                        distance  = (temp4-lcc).norm();
-//                        distance += (p_center-lcc).norm();
-//
-//                        upprojected_edge  = temp4 - ( temp4 - p_center ).dot( p_normal )*p_normal;
-//                        tangent_plane_delta = upprojected_edge - p_center;
-//                        upprojected_edge = p_center + distance * tangent_plane_delta.normalized();
-
                         break;
 
                         }
 
-                return upprojected_edge;
+                return {type_,upprojected_edge};
 }
 
 template<typename Scalar>
@@ -307,7 +240,7 @@ class RefractionResidualFunction
         template <typename T>
         bool operator()(const T* const eye_center_0, const T* const eye_center_1, const T* const eye_center_2, const T* eye_param, const T* const pupil_param, T * e) const
         {
-            Eigen::Matrix<T, 3, 1> upprojected_edge;
+            std::pair<int,Eigen::Matrix<T, 3, 1>> upprojected_edge;
             int i;
 
             const Eigen::Matrix<T, 3, 1> extended_eye_param{T(eyeball_radius), T(eye_param[0]), T(eye_param[1])};
@@ -328,12 +261,29 @@ class RefractionResidualFunction
 
             for (int i = 0; i < N; ++i) {
                 upprojected_edge = map_to_tangent_space<T>(internal_edges[i], &sphere_center[0], &extended_eye_param[0], pupil_param, focal_length, n_ref);
-                e[i] = (r - (p_center-upprojected_edge).norm())/p_center.norm(); //sphere_center.norm();
+
+                switch(upprojected_edge.first){
+
+                    case 0:
+                        e[i] = ((upprojected_edge.second-sphere_center).norm()+dp)/p_center.norm(); //sphere_center.norm();
+                        break;
+
+                    case 1:
+                    case 3:
+                        e[i] = (r - (p_center-upprojected_edge.second).norm())/p_center.norm(); //sphere_center.norm();
+                        break;
+
+
+                    case 2:
+                        e[i] = (upprojected_edge.second-p_center).norm()/p_center.norm(); //sphere_center.norm();
+                        break;
+
+                }
 
             }
 
             upprojected_edge = map_to_tangent_space<T>(ellipse_center, &sphere_center[0], &extended_eye_param[0], pupil_param, focal_length, n_ref);
-            e[N] = T(*lambda_2)*(p_center-upprojected_edge).norm()/p_center.norm(); //sphere_center.norm();
+            e[N] = T(*lambda_2)*(p_center-upprojected_edge.second).norm()/sphere_center.norm();
 
             return true;
         }

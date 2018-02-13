@@ -13,10 +13,36 @@ from detector cimport *
 from methods import  normalize
 from numpy.math cimport PI
 import numpy as np
+from cython.operator cimport dereference as deref
+
 
 cdef extern from 'singleeyefitter/mathHelper.h' namespace 'singleeyefitter::math':
 
     Matrix21d cart2sph( Matrix31d& m )
+
+cdef inline convertTo2DCppResult(pupil_datum, shared_ptr[Detector2DResult] ptr):
+
+    deref(ptr).confidence = pupil_datum['confidence']
+    deref(ptr).ellipse.center[0] = pupil_datum['ellipse']['center'][0]
+    deref(ptr).ellipse.center[1] = pupil_datum['ellipse']['center'][1]
+    deref(ptr).ellipse.minor_radius = pupil_datum['ellipse']['axes'][0]/2.0
+    deref(ptr).ellipse.major_radius = pupil_datum['ellipse']['axes'][1]/2.0
+    deref(ptr).ellipse.angle = (pupil_datum['ellipse']['angle']+90)*PI/180.0
+    deref(ptr).timestamp = pupil_datum['timestamp']
+    deref(ptr).image_height = pupil_datum['height']
+    deref(ptr).image_width = pupil_datum['width']
+
+    deref(ptr).final_edges.clear()
+    cdef Point_[int] temp
+    for edge in pupil_datum['final_edges']:
+        temp.x = int(edge[0])
+        temp.y = int(edge[1])
+        deref(ptr).final_edges.push_back(temp)
+
+    deref(ptr).current_roi.x = pupil_datum['ROI'][0]
+    deref(ptr).current_roi.y = pupil_datum['ROI'][1]
+    deref(ptr).current_roi.width = pupil_datum['ROI'][2]
+    deref(ptr).current_roi.height = pupil_datum['ROI'][3]
 
 cdef inline convertTo2DPythonResult( Detector2DResult& result, object frame, object roi, edges):
 
@@ -35,6 +61,10 @@ cdef inline convertTo2DPythonResult( Detector2DResult& result, object frame, obj
     py_result['norm_pos'] = norm_center
     py_result['timestamp'] = frame.timestamp
     py_result['method'] = '2d c++'
+
+    py_result['width'] = result.image_width
+    py_result['height'] = result.image_height
+    py_result['ROI']= [result.current_roi.x, result.current_roi.y, result.current_roi.width, result.current_roi.height]
 
     if edges:
         py_result['final_edges'] = getEdges2D(result)

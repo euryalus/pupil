@@ -35,6 +35,7 @@ cdef class Detector_3D:
     cdef Detector2D* detector2DPtr
     cdef EyeModel* detector3DPtr
     cdef shared_ptr[Detector2DResult] Result2D_ptr
+    cdef Detector2DResult detector2DResult
     cdef dict detectProperties2D, detectProperties3D
     cdef object menu2D, menu3D
     cdef object gPool
@@ -48,7 +49,10 @@ cdef class Detector_3D:
     cdef readonly basestring icon_font
 
     def __cinit__(self, g_pool = None, settings = None):
+
         self.detector2DPtr = new Detector2D()
+        self.Result2D_ptr = self.detector2DPtr.empty_result()
+
         focal_length = 620.
         '''
         K for 30hz eye cam:
@@ -220,7 +224,8 @@ cdef class Detector_3D:
 
         # All coordinates in the result are relative to the current ROI
         # We don't use debug image in 3d model
-        self.Result2D_ptr =  self.detector2DPtr.detect(self.detectProperties2D,
+        self.Result2D_ptr.reset()
+        self.Result2D_ptr = self.detector2DPtr.detect(self.detectProperties2D,
                                                         cv_image,
                                                         cv_image_color,
                                                         debug_image,
@@ -228,6 +233,13 @@ cdef class Detector_3D:
                                                         visualize,
                                                         False)
 
+#        self.Result2D_ptr = self.detector2DPtr.detect(self.detectProperties2D,
+#                                                        cv_image,
+#                                                        cv_image_color,
+#                                                        debug_image,
+#                                                        Rect_[int](roi_x, roi_y, roi_width, roi_height),
+#                                                        visualize,
+#                                                        False)
         cdef Point_[int] p_
         cdef Edges2D cv2_edges
 
@@ -298,6 +310,33 @@ cdef class Detector_3D:
         # 3D model part
         cdef Detector3DResult cpp3DResult = self.detector3DPtr.predictSingleObservation(self.Result2D_ptr, 1, self.detectProperties3D)
         pyResult = convertTo3DPythonResult(cpp3DResult, frame)
+
+        return pyResult
+
+    def add_pupil_datum(self, pupil_datum, confidence_threshold=0.9):
+        convertTo2DCppResult(pupil_datum, self.Result2D_ptr)
+        if deref(self.Result2D_ptr).confidence > confidence_threshold:
+            return self.detector3DPtr.addObservation(self.Result2D_ptr, 1)
+        else:
+            print("Not adding pupil!")
+            return -1
+
+    def print_last_2d_result(self):
+        print(deref(self.Result2D_ptr).confidence)
+        print(deref(self.Result2D_ptr).final_edges[0].x,deref(self.Result2D_ptr).final_edges[0].y)
+
+    def detect_pupil_datum(self, pupil_datum, frame):
+        convertTo2DCppResult(pupil_datum, self.Result2D_ptr)
+        # 3D model part
+        try:
+            debugDetector = self.debugVisualizer3D.window   # This fails when called outside of Pupil
+        except:
+            debugDetector = True
+        cdef Detector3DResult cpp3DResult  = self.detector3DPtr.predictAndUpdate(self.Result2D_ptr, self.detectProperties3D, debugDetector)
+        pyResult = convertTo3DPythonResult(cpp3DResult, frame)
+
+        if debugDetector:
+           self.pyResult3D = prepareForVisualization3D(cpp3DResult)
 
         return pyResult
 

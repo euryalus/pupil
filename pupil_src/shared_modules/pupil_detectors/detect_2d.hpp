@@ -39,6 +39,7 @@ class Detector2D {
 		Detector2D();
 		std::shared_ptr<Detector2DResult> detect(Detector2DProperties& props, cv::Mat& image, cv::Mat& color_image, cv::Mat& debug_image, cv::Rect& roi, bool visualize, bool use_debug_image, bool pause_video);
 		std::vector<cv::Point> ellipse_true_support(Detector2DProperties& props, Ellipse& ellipse, double ellipse_circumference, std::vector<cv::Point>& raw_edges);
+        std::shared_ptr<Detector2DResult> empty_result();
 
 
 	private:
@@ -58,7 +59,8 @@ void printPoints(std::vector<cv::Point> points)
 
 }
 
-Detector2D::Detector2D(): mUse_strong_prior(false), mPupil_Size(100) {};
+Detector2D::Detector2D(): mUse_strong_prior(false), mPupil_Size(100)
+{};
 
 std::vector<cv::Point> Detector2D::ellipse_true_support(Detector2DProperties& props,Ellipse& ellipse, double ellipse_circumference, std::vector<cv::Point>& raw_edges)
 {
@@ -73,6 +75,31 @@ std::vector<cv::Point> Detector2D::ellipse_true_support(Detector2DProperties& pr
 	}
 	return support_pixels;
 }
+
+std::shared_ptr<Detector2DResult> Detector2D::empty_result()
+{
+
+	std::shared_ptr<Detector2DResult> result = std::make_shared<Detector2DResult>();
+	std::vector<cv::Point> final_edges;
+	std::vector<cv::Point> raw_edges;
+	cv::Point p;
+	p.x=0;
+	p.y=0;
+	final_edges.push_back(p);
+	raw_edges.push_back(p);
+	result->final_edges = std::move(final_edges);
+	result->raw_edges = std::move(raw_edges);
+    result->confidence = 0.0;
+    result->ellipse = Ellipse2D<double>();
+    result->current_roi = cv::Rect(0, 0, 1, 1);
+    result->timestamp = 0.0;
+    result->image_width = 0;
+    result->image_height = 0;
+
+	return result;
+
+}
+
 std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props, cv::Mat& image, cv::Mat& color_image, cv::Mat& debug_image, cv::Rect& roi, bool visualize, bool use_debug_image, bool pause_video = false)
 {
 	std::shared_ptr<Detector2DResult> result = std::make_shared<Detector2DResult>();
