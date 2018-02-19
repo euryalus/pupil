@@ -102,6 +102,7 @@ std::shared_ptr<Detector2DResult> Detector2D::empty_result()
 
 std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props, cv::Mat& image, cv::Mat& color_image, cv::Mat& debug_image, cv::Rect& roi, bool visualize, bool use_debug_image, bool pause_video = false)
 {
+
 	std::shared_ptr<Detector2DResult> result = std::make_shared<Detector2DResult>();
 	result->current_roi = roi;
 	result->image_width =  image.size().width;

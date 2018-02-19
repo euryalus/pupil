@@ -313,7 +313,16 @@ cdef class Detector_3D:
 
         return pyResult
 
+    def predict_pupil_datum(self, pupil_datum, frame):
+        self.Result2D_ptr = self.detector2DPtr.empty_result()
+        convertTo2DCppResult(pupil_datum, self.Result2D_ptr)
+        cdef Detector3DResult cpp3DResult = self.detector3DPtr.predictSingleObservation(self.Result2D_ptr, 1, self.detectProperties3D)
+        pyResult = convertTo3DPythonResult(cpp3DResult, frame)
+
+        return pyResult
+
     def add_pupil_datum(self, pupil_datum, confidence_threshold=0.9):
+        self.Result2D_ptr = self.detector2DPtr.empty_result()
         convertTo2DCppResult(pupil_datum, self.Result2D_ptr)
         if deref(self.Result2D_ptr).confidence > confidence_threshold:
             return self.detector3DPtr.addObservation(self.Result2D_ptr, 1)
@@ -326,6 +335,7 @@ cdef class Detector_3D:
         print(deref(self.Result2D_ptr).final_edges[0].x,deref(self.Result2D_ptr).final_edges[0].y)
 
     def detect_pupil_datum(self, pupil_datum, frame):
+        self.Result2D_ptr = self.detector2DPtr.empty_result()
         convertTo2DCppResult(pupil_datum, self.Result2D_ptr)
         # 3D model part
         try:
