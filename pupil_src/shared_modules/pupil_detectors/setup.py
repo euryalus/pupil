@@ -111,6 +111,10 @@ extensions = [
 
 if __name__ == '__main__':
 
+    # print(include_dirs)
+    # print(libs)
+    # print(library_dirs)
+
     setup(
         name="pupil_detectors",
         version="0.1",
@@ -119,4 +123,4 @@ if __name__ == '__main__':
         author_email='info@pupil-labs.com',
         license='GNU',
         ext_modules=cythonize(extensions, quiet=True, nthreads=8)
-)
+    )

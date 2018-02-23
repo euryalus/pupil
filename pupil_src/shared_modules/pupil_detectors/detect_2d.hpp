@@ -73,6 +73,7 @@ std::vector<cv::Point> Detector2D::ellipse_true_support(Detector2DProperties& pr
 			support_pixels.emplace_back(p);
 		}
 	}
+
 	return support_pixels;
 }
 
@@ -204,16 +205,13 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 		cv::putText(color_image, text_string, text_pos, cv::FONT_HERSHEY_SIMPLEX, 0.4, mRoyalBlue_color);
 	}
 
-
 	//GuoHallThinner thinner;
     //thinner.thin(edges, true);
-
 
 	//get raw edge pixel for later
 	std::vector<cv::Point> raw_edges;
     // find zero crashes if it doesn't find one. replace with cv implementation if opencv version is 3.0 or above
 	singleeyefitter::cvx::findNonZero(edges, raw_edges);
-
 
 	///////////////////////////////
 	/// Strong Prior Part Begin ///
@@ -245,7 +243,7 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 			ellipse = toEllipse<double>(refit_ellipse);
 
 	    	ellipse_circumference = ellipse.circumference();
-			support_pixels = ellipse_true_support(props,ellipse, ellipse_circumference, raw_edges);
+			support_pixels = ellipse_true_support(props, ellipse, ellipse_circumference, raw_edges);
 	     	support_ratio = support_pixels.size() / ellipse_circumference;
 
 			ellipse.center[0] += roi.x;
@@ -266,6 +264,7 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 	    }
 	  }
 	}
+
 	///////////////////////////////
 	///  Strong Prior Part End  ///
 	///////////////////////////////
@@ -322,6 +321,7 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 	}
 
 	std::sort(split_contours.begin(), split_contours.end(), [](const Contour_2D & a,const Contour_2D & b) { return a.size() > b.size(); });
+
 	const cv::Rect ellipse_center_varianz = cv::Rect(padding, padding, pupil_image.size().width - 2.0 * padding, pupil_image.size().height - 2.0 * padding);
 	const EllipseEvaluation2D is_Ellipse(ellipse_center_varianz, props.ellipse_roundness_ratio, props.pupil_size_min, props.pupil_size_max);
 
@@ -329,12 +329,14 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 	auto seed_contours  = detector::divide_strong_and_weak_contours(
 	                          split_contours, is_Ellipse, props.initial_ellipse_fit_treshhold,
 	                          props.strong_perimeter_ratio_range_min, props.strong_perimeter_ratio_range_max,
-	                          props.strong_area_ratio_range_min, props.strong_area_ratio_range_max
-	                      );
+	                          props.strong_area_ratio_range_min, props.strong_area_ratio_range_max);
+
 	std::vector<int> seed_indices = seed_contours.first; // strong contours
 
 	if (seed_indices.empty() && !seed_contours.second.empty()) {
+
 		seed_indices = seed_contours.second; // weak contours
+
 	}
 
 	// still empty ? --> exits
@@ -422,12 +424,15 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 
 		return results;
 	};
+
 	std::set<int> seed_indices_set = std::set<int>(seed_indices.begin(), seed_indices.end());
 	std::vector<std::set<int>> solutions = pruning_quick_combine(split_contours, seed_indices_set, 1000, 5);
 
-	//find largest sets which contains all previous ones
+    //find largest sets which contains all previous ones
 	auto filter_subset = [](std::vector<std::set<int>>& sets) {
+
 		std::vector<std::set<int>> filtered_set;
+
 		int i = 0;
 
 		for (auto& current_set : sets) {
@@ -452,52 +457,99 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 		return filtered_set;
 	};
 
-	solutions = filter_subset(solutions);
+    if (props.filter_solutions){
+        solutions = filter_subset(solutions);
+    }
 
-	int index_best_Solution = -1;
+    Contours_2D split_contours_non_approx;
+    for (int i;i<split_contours.size();i++){
+        split_contours_non_approx.push_back(std::vector<cv::Point>());
+    }
+
+   	int index_best_Solution = -1;
 	int enum_index = 0;
 
+    auto resolve_contour = [&](std::vector<cv::Point>& contour, cv::Mat & edges) -> std::vector<cv::Point> {
+		cv::Mat support_mask(edges.rows, edges.cols, edges.type(), {0, 0, 0});
+		cv::polylines(support_mask, contour, false, {255, 255, 255}, 2);
+		cv::Mat new_edges;
+		std::vector<cv::Point> new_contours;
+		cv::min(edges, support_mask, new_edges);
+		cv::findNonZero(new_edges, new_contours);
+		return new_contours;
+	};
+
+    double max_support_ratio = props.final_perimeter_ratio_range_min;
+
 	for (auto& s : solutions) {
+
 		std::vector<cv::Point> test_contour;
 
 		//concatenate contours to one contour
 		for (int i : s) {
-			std::vector<cv::Point>& c = split_contours.at(i);
+
+            //GENERATE DEAPPROXIMATION OF CONTOUR IF IT IS PART OF A SOLUTION
+		    if (split_contours_non_approx[i].size()==0){
+                std::vector<cv::Point> generated_edges = resolve_contour(split_contours[i], edges);
+                split_contours_non_approx[i].reserve(std::distance(generated_edges.begin(), generated_edges.end()));
+                split_contours_non_approx[i].insert(split_contours_non_approx[i].end(), generated_edges.begin(), generated_edges.end());
+            }
+
+			std::vector<cv::Point>& c = split_contours_non_approx.at(i);
 			test_contour.insert(test_contour.end(), c.begin(), c.end());
+
 		}
 
 		auto cv_ellipse = cv::fitEllipse(test_contour);
 
 		if (use_debug_image) {
+
 			cv::ellipse(debug_image, cv_ellipse , mRed_color);
+
 		}
 
 		Ellipse ellipse = toEllipse<double>(cv_ellipse);
 		double ellipse_circumference = ellipse.circumference();
-		std::vector<cv::Point>  support_pixels = ellipse_true_support(props, ellipse, ellipse_circumference, raw_edges);
-		double support_ratio = support_pixels.size() / ellipse_circumference;
-		//TODO: refine the selection of final candidate
 
-		if (support_ratio >= props.final_perimeter_ratio_range_min && is_Ellipse(cv_ellipse)) {
+		std::vector<cv::Point> support_pixels;
+		double support_ratio;
+
+		if(props.support_from_raw_edges){
+            support_pixels = ellipse_true_support(props, ellipse, ellipse_circumference, raw_edges);
+            support_ratio = (support_pixels.size()/ellipse_circumference)*(pow(1.0*support_pixels.size()/raw_edges.size(),props.support_ratio_weight));
+		}else{
+		    support_pixels = ellipse_true_support(props, ellipse, ellipse_circumference, test_contour);
+		    support_ratio = (support_pixels.size()/ellipse_circumference)*(pow(1.0*support_pixels.size()/test_contour.size(),props.support_ratio_weight));
+		}
+
+  	    support_ratio = pow(support_ratio,1./(1.+props.support_ratio_weight));
+
+
+     	if (support_ratio >= max_support_ratio && is_Ellipse(cv_ellipse)) {
+
+            if (props.take_maximum){
+                max_support_ratio = support_ratio;
+            }
+
 			index_best_Solution = enum_index;
 
-			if (support_ratio >= props.strong_perimeter_ratio_range_min) {
+        	if (support_ratio >= props.strong_perimeter_ratio_range_min) {
 				ellipse.center[0] += roi.x;
 				ellipse.center[1] += roi.y;
 				mPrior_ellipse = ellipse;
-				mUse_strong_prior = true;
+				mUse_strong_prior = false; //TODO Switch back on?
 
 				if (use_debug_image) {
 					cv::ellipse(debug_image, cv_ellipse , mGreen_color);
 				}
 			}
+
 		}
 
 		enum_index++;
 	}
 
 	// select ellipse
-
 	if (index_best_Solution == -1) {
 		// no good final ellipse found
 		result->confidence = 0.0;
@@ -524,9 +576,7 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 	// final calculation of goodness of fit
 	auto ellipse = toEllipse<double>(cv_ellipse);
 	double ellipse_circumference = ellipse.circumference();
-	std::vector<cv::Point>  support_pixels = ellipse_true_support(props, ellipse, ellipse_circumference, raw_edges);
-	double support_ratio = support_pixels.size() / ellipse_circumference;
-	double goodness = std::min(double(0.99), support_ratio);
+
 	//final fitting and return of result
 	auto final_fitting = [&](std::vector<std::vector<cv::Point>>& contours, cv::Mat & edges) -> std::vector<cv::Point> {
 		//use the real edge pixels to fit, not the aproximated contours
@@ -560,6 +610,23 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 
 	};
 	std::vector<cv::Point> final_edges =  final_fitting(best_contours, edges);
+
+    std::vector<cv::Point> support_pixels;
+    double support_ratio;
+    if(props.support_from_raw_edges){
+        support_pixels = ellipse_true_support(props, ellipse, ellipse_circumference, raw_edges);
+        support_ratio = (std::min(double(0.99), support_pixels.size()/ellipse_circumference))*(pow(1.0*support_pixels.size()/raw_edges.size(),props.support_ratio_weight));
+    }else{
+        support_pixels = ellipse_true_support(props, ellipse, ellipse_circumference, final_edges);
+        support_ratio = (std::min(double(0.99), support_pixels.size()/ellipse_circumference))*(pow(1.0*support_pixels.size()/final_edges.size(),props.support_ratio_weight));
+    }
+
+    support_ratio = pow(support_ratio,1./(1.+props.support_ratio_weight));
+
+	//double support_ratio = support_pixels.size() / ellipse_circumference;
+	double goodness = support_ratio; //std::min(double(0.99), support_ratio))*(props.support_ratio_weight*support_pixels.size()/final_edges.size());
+	//goodness /= 1.+props.support_ratio_weight;
+
 	auto cv_new_Ellipse = cv::fitEllipse(final_edges);
 	double size_difference  = std::abs(1.0 - cv_ellipse.size.height / cv_new_Ellipse.size.height);
 	auto& cv_final_Ellipse = cv_ellipse;
@@ -567,7 +634,6 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 		if (use_debug_image) {
 			cv::ellipse(debug_image, cv_new_Ellipse, mGreen_color);
 		}
-
 		cv_final_Ellipse = cv_new_Ellipse;
 	}
 
@@ -589,9 +655,8 @@ std::shared_ptr<Detector2DResult> Detector2D::detect(Detector2DProperties& props
 	// split_contours = singleeyefitter::detector::split_rough_contours_optimized(approx_contours, 150.0 , split_contour_size_min);
 
 	// result->contours = std::move(split_contours);
-	 result->final_edges = std::move(final_edges);// need for optimisation
-
-	result->raw_edges = std::move(raw_edges);
+	result->final_edges = std::move(final_edges);// need for optimisation
+    result->raw_edges = std::move(raw_edges);
 	return result;
 }
 

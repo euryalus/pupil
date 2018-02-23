@@ -147,6 +147,10 @@ namespace singleeyefitter {
         float final_perimeter_ratio_range_min;
         float final_perimeter_ratio_range_max;
         float ellipse_true_support_min_dist;
+        float support_ratio_weight;
+        bool filter_solutions;
+        bool take_maximum;
+        bool support_from_raw_edges;
 
     };
 

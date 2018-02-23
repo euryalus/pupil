@@ -67,7 +67,10 @@ cdef inline convertTo2DPythonResult( Detector2DResult& result, object frame, obj
     py_result['ROI']= [result.current_roi.x, result.current_roi.y, result.current_roi.width, result.current_roi.height]
 
     if edges:
-        py_result['final_edges'] = getEdges2D(result)
+        py_result['final_edges'] = getFinalEdges2D(result)
+        py_result['raw_edges'] = getRawEdges2D(result)
+
+
 
     return py_result
 
@@ -212,7 +215,7 @@ cdef inline getBinPositions( ModelDebugProperties& result ):
         positions.append([point[0]*eyeRadius+eyePosition[0],point[1]*eyeRadius+eyePosition[1],point[2]*eyeRadius+eyePosition[2]])
     return positions
 
-cdef inline getEdges2D( Detector2DResult& result ):
+cdef inline getFinalEdges2D( Detector2DResult& result ):
     if result.final_edges.size() == 0:
         return []
     edges = []
@@ -220,7 +223,16 @@ cdef inline getEdges2D( Detector2DResult& result ):
         edges.append([point.x,point.y])
     return edges
 
-cdef inline getEdges( Detector3DResult& result ):
+cdef inline getRawEdges2D( Detector2DResult& result ):
+    if result.raw_edges.size() == 0:
+        return []
+    edges = []
+    for point in result.raw_edges:
+        edges.append([point.x,point.y])
+    return edges
+
+
+cdef inline getEdges( Detector3DResult& result):
     if result.edges.size() == 0:
         return []
     edges = []

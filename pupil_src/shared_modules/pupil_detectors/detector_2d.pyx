@@ -81,6 +81,12 @@ cdef class Detector_2D:
             self.detectProperties["final_perimeter_ratio_range_min"] = 0.5
             self.detectProperties["final_perimeter_ratio_range_max"] = 1.0
             self.detectProperties["ellipse_true_support_min_dist"] = 3.0
+            self.detectProperties["support_ratio_weight"] = 1.0
+            self.detectProperties["filter_solutions"] = True
+            self.detectProperties["take_maximum"]=True
+            self.detectProperties["support_from_raw_edges"]=False
+
+
 
     def set_settings(self, settings):
         self.detectProperties = settings

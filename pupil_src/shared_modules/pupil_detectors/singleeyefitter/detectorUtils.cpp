@@ -102,6 +102,7 @@ namespace singleeyefitter {
 
         return split_indeces;
     }
+
     Contours_2D detector::detail::split_at_corner_index(const Contour_2D& contour, const std::vector<int>& indices)
     {
         std::vector<std::vector<cv::Point>> contour_segments;
@@ -122,8 +123,6 @@ namespace singleeyefitter {
 
         return contour_segments;
     }
-
-
 
     template< typename Scalar >
     Contours_2D detector::split_rough_contours_optimized(const Contours_2D& contours, const Scalar max_angle, const int min_contour_size)
@@ -247,7 +246,7 @@ namespace singleeyefitter {
     };
 
 
-// tell the compile to generate these explicit templates, otherwise it wouldn't know which one to create at compile time
+    // tell the compiler to generate these explicit templates, otherwise it wouldn't know which one to create at compile time
     template Contours_2D detector::split_rough_contours(const Contours_2D& contours, const float angle);
     template Contours_2D detector::split_rough_contours(const Contours_2D& contours, const double angle);
     template Contours_2D detector::split_rough_contours_optimized(const Contours_2D& contours, const float angle, const int min_contour_size);

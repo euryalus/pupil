@@ -123,6 +123,7 @@ cdef class Detector_3D:
             self.detectProperties2D["final_perimeter_ratio_range_min"] = 0.6
             self.detectProperties2D["final_perimeter_ratio_range_max"] = 1.2
             self.detectProperties2D["ellipse_true_support_min_dist"] = 2.5
+            self.detectProperties2D["support_ratio_weight"] = 0.0
 
 
         self.detectProperties3D = {}
