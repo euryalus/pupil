@@ -19,6 +19,11 @@
 namespace singleeyefitter{
 
 template<typename T>
+T effective_refractive_index(T alpha, T nref){
+    return nref;
+}
+
+template<typename T>
 std::pair<int,Eigen::Matrix<T, 3, 1>> map_to_tangent_space(const cv::Point& inlier,
                             const T* const eye_center,
                             const T* const eye_param,
@@ -78,6 +83,7 @@ std::pair<int,Eigen::Matrix<T, 3, 1>> map_to_tangent_space(const cv::Point& inli
                 T discriminant_cornea, discriminant_eyeball;
                 Vector3 a, b, acrossb;
                 Vector3 ncrossv, minncrossv, ncrossminncrossv;
+                T alpha;
 
                 Vector3 upprojected_edge;
                 Vector3 tangent_plane_delta;
@@ -176,6 +182,8 @@ std::pair<int,Eigen::Matrix<T, 3, 1>> map_to_tangent_space(const cv::Point& inli
                         //WRITE TO OLD VARIABLES
                         ray_center = lcc;
 
+                        alpha = acos(p_normal.dot((lcc-cornea_center).normalized())); //Angle between pupil normal and ray to intersection
+                        nref = effective_refractive_index(alpha,nref);
                         ray_direction = 1.0/nref*ncrossminncrossv-lccn*sqrt(1.0-1.0/pow(nref,2)*pow(ncrossv.norm(),2));
 
                         //INTERSECT FINAL RAY WITH TANGENT PLANE

@@ -122,6 +122,8 @@ cdef inline convertTo3DPythonResult(Detector3DResult& result, object frame):
     py_result = {}
     py_result['topic'] = 'pupil'
 
+    py_result['cost'] = result.cost
+
     circle = {}
     circle['center'] =  (result.circle.center[0],-result.circle.center[1], result.circle.center[2])
     circle['normal'] =  (result.circle.normal[0],-result.circle.normal[1], result.circle.normal[2])

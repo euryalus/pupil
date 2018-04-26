@@ -48,18 +48,20 @@ cdef class Detector_3D:
     cdef readonly basestring icon_chr
     cdef readonly basestring icon_font
 
-    def __cinit__(self, g_pool = None, settings = None):
+    def __cinit__(self, g_pool = None, settings = None, focal_length=620.0):
 
         self.detector2DPtr = new Detector2D()
         self.Result2D_ptr = self.detector2DPtr.empty_result()
 
-        focal_length = 620.
+        #focal_length = 620.
+
         '''
         K for 30hz eye cam:
         [ 634.16873016    0.          343.40537637]
         [   0.          605.57862234  252.3924477 ]
         [   0.            0.            1.        ]
         '''
+
         self.detector3DPtr = new EyeModel(1, -1, focal_length)
 
         # When the detector is created from within Pupil, we load
@@ -72,7 +74,8 @@ cdef class Detector_3D:
             constants = np.load(g_pool.user_dir+"/constants.npy")
             self.detector3DPtr.setApproximationParameters(Cp, Ct, Cr, exponents, constants)
 
-    def __init__(self, g_pool = None, settings = None ):
+    def __init__(self, g_pool = None, settings = None, focal_length=620.0):
+
         self.debugVisualizer3D = Eye_Visualizer(g_pool ,self.detector3DPtr.getFocalLength() )
         self.g_pool = g_pool
         self.uniqueness = 'unique'
@@ -124,22 +127,25 @@ cdef class Detector_3D:
             self.detectProperties2D["final_perimeter_ratio_range_max"] = 1.2
             self.detectProperties2D["ellipse_true_support_min_dist"] = 2.5
             self.detectProperties2D["support_ratio_weight"] = 0.0
-
+            self.detectProperties2D["filter_solutions"] = True
+            self.detectProperties2D["support_ratio_weight"] = 0.0
+            self.detectProperties2D["take_maximum"] = False
+            self.detectProperties2D["support_from_raw_edges"] = True
 
         self.detectProperties3D = {}
         self.detectProperties3D["edge_number"] = -1
         self.detectProperties3D["strikes"] = 2
-        self.detectProperties3D["center_weight_initial"] = 0.0
-        self.detectProperties3D["center_weight_final"] = 10.0
+        self.detectProperties3D["center_weight_initial"] = 10.0
+        self.detectProperties3D["center_weight_final"] = 0.0
         self.detectProperties3D["iteration_numbers"] = [10, 20, 20, 20, 500]
         self.detectProperties3D["residuals_averaged_fraction"] = 0.8
         self.detectProperties3D["outlier_factor"] = 7.0
         self.detectProperties3D["start_remove_number"] = 500
         self.detectProperties3D["cauchy_loss_scale"] = 0.001
         self.detectProperties3D["eyeball_radius"] = 12.0
-        self.detectProperties3D["cornea_radius"] = 7.5
+        self.detectProperties3D["cornea_radius"] = 7.8
         self.detectProperties3D["iris_radius"] = 6.0
-        self.detectProperties3D["n_ref"] = 1.3375
+        self.detectProperties3D["n_ref"] = 1.0
         self.detectProperties3D["run_mode"] = SWIRSKI
         self.detectProperties3D["pars_to_optimize"] = [1, 1, 1]
 

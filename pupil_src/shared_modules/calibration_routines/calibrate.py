@@ -54,7 +54,6 @@ def calibrate_2d_polynomial(cal_pt_cloud,screen_size=(1,1),threshold = 35, binoc
         return map_fn,err_dist<=threshold,([p.tolist() for p in cx], [p.tolist() for p in cy], model_n)
 
 
-
 def fit_poly_surface(cal_pt_cloud,n=7):
     M = make_model(cal_pt_cloud,n)
     U,w,Vt = np.linalg.svd(M[:,:n],full_matrices=0)
@@ -68,6 +67,7 @@ def fit_poly_surface(cal_pt_cloud,n=7):
     err_y=(np.dot(M[:,:n],cy)-M[:,n+1])
     return cx,cy,err_x,err_y
 
+
 def fit_error_screen(err_x,err_y,screen_pos):
     screen_x,screen_y = screen_pos
     err_x *= screen_x/2.
@@ -77,6 +77,7 @@ def fit_error_screen(err_x,err_y,screen_pos):
     err_rms=np.sqrt(np.sum(err_dist*err_dist)/len(err_dist))
     return err_dist,err_mean,err_rms
 
+
 def fit_error_angle(err_x,err_y ) :
     err_x *= 2. * np.pi
     err_y *= 2. * np.pi
@@ -84,6 +85,7 @@ def fit_error_angle(err_x,err_y ) :
     err_mean=np.sum(err_dist)/len(err_dist)
     err_rms=np.sqrt(np.sum(err_dist*err_dist)/len(err_dist))
     return err_dist,err_mean,err_rms
+
 
 def make_model(cal_pt_cloud,n=7):
     n_points = cal_pt_cloud.shape[0]
@@ -322,6 +324,7 @@ def preprocess_2d_data_monocular(matched_data):
         cal_data.append( (pupil["norm_pos"][0], pupil["norm_pos"][1],ref['norm_pos'][0],ref['norm_pos'][1]) )
     return cal_data
 
+
 def preprocess_2d_data_binocular(matched_data):
     cal_data = []
     for triplet in matched_data:
@@ -329,6 +332,7 @@ def preprocess_2d_data_binocular(matched_data):
         data_pt = p0["norm_pos"][0], p0["norm_pos"][1],p1["norm_pos"][0], p1["norm_pos"][1],ref['norm_pos'][0],ref['norm_pos'][1]
         cal_data.append( data_pt )
     return cal_data
+
 
 def preprocess_3d_data(matched_data, g_pool):
     ref_processed = []
@@ -355,8 +359,8 @@ def preprocess_3d_data(matched_data, g_pool):
             ref_vector = cv2.convertPointsToHomogeneous(np.float32(ref_vector))
             ref_vector.shape = (-1, 3)
             ref_vector = ref_vector.tolist()[0]
-
             ref_vector = ref_vector / np.linalg.norm(ref_vector)
+
             # assuming a fixed (assumed) distance we get a 3d point in world camera 3d coords.
             ref_processed.append(ref_vector)
 
@@ -397,6 +401,7 @@ def find_rigid_transform(A, B):
     t = -R*centroid_A.T + centroid_B.T
 
     return np.array(R), np.array(t).reshape(3)
+
 
 def calculate_residual_3D_Points( ref_points, gaze_points, eye_to_world_matrix ):
 

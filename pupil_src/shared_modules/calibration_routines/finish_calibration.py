@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 from . gaze_mappers import *
 
 not_enough_data_error_msg = 'Did not collect enough data during calibration.'
-solver_failed_to_converge_error_msg = 'Paramters could not be estimated from data.'
+solver_failed_to_converge_error_msg = 'Parameters could not be estimated from data.'
 
 
 def calibrate_3d_binocular(g_pool, matched_binocular_data, pupil0, pupil1):
@@ -54,35 +54,39 @@ def calibrate_3d_binocular(g_pool, matched_binocular_data, pupil0, pupil1):
     initial_rotation1 = math_helper.quaternion_from_rotation_matrix(initial_R1)
     initial_translation1 = np.array(initial_t1).reshape(3)  # currently not used
 
-    eye0 = {"observations": gaze0_dir, "translation": initial_translation0,
-            "rotation": initial_rotation0, 'fix': []}
+    # eye0 = {"observations": gaze0_dir, "translation": initial_translation0,
+    #         "rotation": initial_rotation0, 'fix': []}
+    #
+    # eye1 = {"observations": gaze1_dir, "translation": initial_translation1,
+    #         "rotation": initial_rotation1, 'fix': []}
+    #
+    # world = {"observations": ref_dir, "translation": (0, 0, 0),
+    #          "rotation": (1, 0, 0, 0), 'fix': ['translation', 'rotation']}
+    #
+    # initial_observers = [eye0, eye1, world]
+    #
+    # initial_points = np.array(ref_dir) * 500.0
+    #
+    # success, residual, observers, points = bundle_adjust_calibration(initial_observers,
+    #                                                                  initial_points,
+    #                                                                  fix_points=True)
 
-    eye1 = {"observations": gaze1_dir, "translation": initial_translation1,
-            "rotation": initial_rotation1, 'fix': []}
+    eye0 = {"observations": gaze0_dir, "translation": hardcoded_translation0,
+            "rotation": initial_rotation0, 'fix': ['translation']}
+#            "rotation": initial_rotation0, 'fix': []}
+
+    eye1 = {"observations": gaze1_dir, "translation": hardcoded_translation1,
+            "rotation": initial_rotation1, 'fix': ['translation']}
+#            "rotation": initial_rotation1, 'fix': []}
     world = {"observations": ref_dir, "translation": (0, 0, 0),
              "rotation": (1, 0, 0, 0), 'fix': ['translation', 'rotation']}
 
     initial_observers = [eye0, eye1, world]
-    initial_points = np.array(ref_dir) * 500
+    initial_points = np.array(ref_dir)*500
 
     success, residual, observers, points = bundle_adjust_calibration(initial_observers,
                                                                      initial_points,
-                                                                     fix_points=True)
-
-    # eye0 = {"observations": gaze0_dir, "translation": hardcoded_translation0,
-    #         "rotation": initial_rotation0, 'fix': ['translation']}
-    #
-    # eye1 = {"observations": gaze1_dir, "translation": hardcoded_translation1,
-    #         "rotation": initial_rotation1, 'fix': ['translation']}
-    # world = {"observations": ref_dir, "translation": (0, 0, 0),
-    #          "rotation": (1, 0, 0, 0), 'fix': ['translation', 'rotation']}
-
-    # initial_observers = [eye0, eye1, world]
-    # initial_points = np.array(ref_dir)*500
-    #
-    # success, residual, observers, points = bundle_adjust_calibration(initial_observers,
-    #                                                                  initial_points,
-    #                                                                  fix_points=False)
+                                                                     fix_points=False)
 
     if not success:
         logger.error("Calibration solver faild to converge.")
@@ -356,6 +360,7 @@ def select_calibration_method(g_pool, pupil_list, ref_list):
 
 
 def finish_calibration(g_pool, pupil_list, ref_list):
+
     method, result = select_calibration_method(g_pool, pupil_list, ref_list)
     g_pool.active_calibration_plugin.notify_all(result)
 

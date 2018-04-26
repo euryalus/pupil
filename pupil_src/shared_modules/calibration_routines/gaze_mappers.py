@@ -116,7 +116,8 @@ class Binocular_Gaze_Mapper_Base(Gaze_Mapping_Plugin):
                 gaze_datum = self._map_binocular(p0,p1)
             else:
                 #raise Exception()
-                gaze_datum = self._map_monocular(older_pt)
+                gaze_datum = None #CHANGED!!!! SO THAT NEVER MONOCULAR IS USED
+                #gaze_datum = self._map_monocular(older_pt)
 
         elif len(self._caches[0]) > self.sample_cutoff:
             p = self._caches[0].popleft()

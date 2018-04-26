@@ -168,7 +168,7 @@ class Accuracy_Visualizer(Plugin):
                                           succesive_distances_ref > self.succession_threshold)
         succesive_distances = succesive_distances_gaze[selected_indices]
         num_used, num_total = succesive_distances.shape[0], succesive_distances_gaze.shape[0]
-        self.precision = np.sqrt(np.mean(np.arccos(succesive_distances) ** 2))
+        #self.precision = np.sqrt(np.mean(np.arccos(succesive_distances) ** 2))
         logger.info("Angular precision: {}. Used {} of {} samples.".format(self.precision, num_used, num_total))
 
         #############

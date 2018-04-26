@@ -97,7 +97,7 @@ cdef class Detector_2D:
     def __dealloc__(self):
       del self.thisptr
 
-    def detect(self, frame_, user_roi, visualize, pause_video = False, edges=False, contour_cv2=False):
+    def detect(self, frame_, user_roi, visualize, pause_video = False, edges=False, contour_cv2=False, legacy=True):
 
         image_width = frame_.width
         image_height = frame_.height
@@ -177,7 +177,11 @@ cdef class Detector_2D:
 
 
         # every coordinates in the result are relative to the current ROI
-        cppResultPtr =  self.thisptr.detect(self.detectProperties, frame, frameColor, debugImage, Rect_[int](roi_x,roi_y,roi_width,roi_height),  visualize , use_debugImage )
+        if legacy:
+            cppResultPtr =  self.thisptr.detect_legacy(self.detectProperties, frame, frameColor, debugImage, Rect_[int](roi_x,roi_y,roi_width,roi_height),  visualize , use_debugImage )
+        else:
+            cppResultPtr =  self.thisptr.detect(self.detectProperties, frame, frameColor, debugImage, Rect_[int](roi_x,roi_y,roi_width,roi_height),  visualize , use_debugImage )
+
 
         cdef Point_[int] p_
         cdef Edges2D cv2_edges

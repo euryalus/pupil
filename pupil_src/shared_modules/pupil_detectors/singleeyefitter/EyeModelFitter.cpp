@@ -36,6 +36,8 @@ EyeModelFitter::EyeModelFitter(double focalLength, Vector3 cameraCenter):
     mLogger( pupillabs::PyCppLogger("EyeModelFitter"))
 
 {
+    std::cout << focalLength << std::endl;
+
     mNextModelID++;
 
     // our model for the kalman filter

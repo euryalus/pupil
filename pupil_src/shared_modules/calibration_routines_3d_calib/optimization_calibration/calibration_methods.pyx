@@ -1,7 +1,7 @@
 '''
 (*)~---------------------------------------------------------------------------
 Pupil - eye tracking platform
-Copyright (C) 2012-2017  Pupil Labs
+Copyright (C) 2012-2018 Pupil Labs
 
 Distributed under the terms of the GNU
 Lesser General Public License (LGPL v3.0).
@@ -13,6 +13,7 @@ from libcpp.vector cimport vector
 
 from calibration_methods cimport *
 import numpy as np
+
 
 
 
@@ -52,7 +53,6 @@ def bundle_adjust_calibration( initial_observers, initial_points,fix_points = Tr
 
         #we have swapped to order rot/trans in the cost fn so we dont need to apply the line below
         #AngleAxisRotatePoint(rotation_angle_axis.data(),cpp_translation.data(),cpp_translation.data())
-
 
         #first three is rotation
         cpp_pose[0] = rotation_angle_axis[0]
