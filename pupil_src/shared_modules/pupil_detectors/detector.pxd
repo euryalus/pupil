@@ -158,6 +158,13 @@ cdef extern from 'detect_2d.hpp':
     Detector2D() except +
     shared_ptr[Detector2DResult] detect( Detector2DProperties& prop, Mat& image, Mat& color_image, Mat& debug_image, Rect_[int]& roi, bint visualize , bint use_debug_image )
 
+cdef extern from "singleeyefitter/observation.h" namespace "singleeyefitter":
+
+    cppclass Observation:
+
+        shared_ptr[const Detector2DResult] mObservation2D;
+        pair[Circle, Circle] mUnprojectedCirclePair
+        Observation(shared_ptr[const Detector2DResult] observation, double focalLength)
 
 cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
 
@@ -169,22 +176,37 @@ cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
             float psi
             float radius
 
-        cppclass Observation:
-            shared_ptr[const Detector2DResult] mObservation2D;
-            pair[Circle, Circle] mUnprojectedCirclePair
-            Observation( shared_ptr[const Detector2DResult] observation, double focalLength)
-
-
         EyeModelFitter(double focalLength )
 
-        Detector3DResult updateAndDetect( shared_ptr[Detector2DResult]& results, const Detector3DProperties& prop, bint fillDebugResult )
+        Detector3DResult updateAndDetect(shared_ptr[Detector2DResult]& results, const Detector3DProperties& prop, bint fillDebugResult)
 
         void reset()
         double getFocalLength()
 
-
         double mFocalLength
         Sphere[double] mCurrentSphere
+
+
+cdef extern from "singleeyefitter/EyeModel_v2.h" namespace "singleeyefitter":
+
+
+    cdef cppclass EyeModel_v2:
+
+        cppclass PupilParams:
+            float theta
+            float psi
+            float radius
+
+        EyeModel_v2(double timestamp, double focalLength, Vector3 cameraCenter)
+
+        int addObservation(shared_ptr[Detector2DResult]& results, int prepare_toggle)
+        Sphere[double] optimizeModel()
+
+        void reset()
+        Sphere[double] getSphere()
+        double getFocalLength()
+
+
 
 
 

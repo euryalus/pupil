@@ -32,7 +32,7 @@ from cython.operator cimport dereference as deref
 cdef class Detector_3D_v2:
 
     cdef Detector2D * detector2DPtr
-    cdef EyeModelFitter * detector3DPtr
+    cdef EyeModel_v2 * detector3DPtr
     cdef shared_ptr[Detector2DResult] cpp2DResultPtr
     cdef dict detectProperties2D, detectProperties3D
     cdef object debugVisualizer3D
@@ -47,7 +47,11 @@ cdef class Detector_3D_v2:
     def __cinit__(self, g_pool = None, settings = None):
         self.detector2DPtr = new Detector2D()
         focal_length = 620.
-        self.detector3DPtr = new EyeModelFitter(focal_length)
+        cdef Vector3 camera_center
+        camera_center[0] = 0.0
+        camera_center[1] = 0.0
+        camera_center[2] = 0.0
+        self.detector3DPtr = new EyeModel_v2(0.0, focal_length, camera_center)
 
     def __init__(self, g_pool=None, settings=None):
         self.debugVisualizer3D = Eye_Visualizer(g_pool, self.detector3DPtr.getFocalLength())
@@ -103,6 +107,12 @@ cdef class Detector_3D_v2:
         self.detectProperties2D["pupil_size_max"] *= new_size[0] / old_size[0]
         self.detectProperties2D["pupil_size_min"] *= new_size[0] / old_size[0]
 
+    def get_sphere(self):
+        cdef Sphere[double] sphere_cpp = self.detector3DPtr.getSphere()
+        sphere = {'center': np.array([sphere_cpp.center[0],sphere_cpp.center[1],sphere_cpp.center[2]]),
+                  'radius': sphere_cpp.radius}
+        return sphere
+
     # Relaying observations, performing 2D and 3D detection, etc.
     def detect2D(self, frame, user_roi, visualize):
 
@@ -155,15 +165,23 @@ cdef class Detector_3D_v2:
             roi.set((roi_x, roi_y, roi_x+roi_width, roi_y+roi_height))
 
         # All coordinates in the result are relative to the current ROI
-#        self.cpp2DResultPtr = self.detector2DPtr.detect(self.detectProperties2D, cv_image, cv_image_color, debug_image, Rect_[int](roi_x,roi_y,roi_width,roi_height), visualize , False ) #we don't use debug image in 3d model
-#        deref(self.cpp2DResultPtr).timestamp = frame.timestamp # Timestamp is not set elsewhere but is needed in EyeModel
-#        py_result = convertTo2DPythonResult(deref(self.cpp2DResultPtr), frame, roi)
+        self.cpp2DResultPtr = self.detector2DPtr.detect(self.detectProperties2D, cv_image, cv_image_color, debug_image, Rect_[int](roi_x,roi_y,roi_width,roi_height), visualize , False ) #we don't use debug image in 3d model
+        deref(self.cpp2DResultPtr).timestamp = frame.timestamp # Timestamp is not set elsewhere but is needed in EyeModel
 
-        res = self.detector2DPtr.detect(self.detectProperties2D, cv_image, cv_image_color, debug_image, Rect_[int](roi_x,roi_y,roi_width,roi_height), visualize, False) #We do not use the debug image in 3D model
-        deref(res).timestamp = frame.timestamp # Timestamp is not set elsewhere but is needed in EyeModel
-        py_result = convertTo2DPythonResult(deref(res), frame, roi)
+        py_result = convertTo2DPythonResult(deref(self.cpp2DResultPtr), frame, roi) # Todo: Not needed in final version, here only for debugging
 
         return py_result
+
+    def add_observation(self, frame, user_roi, visualize, prepare_observation=True):
+
+        # 2D model part
+        self.detect2D(frame, user_roi, visualize) # Shared pointer to result is stored in self.Result2D_ptr
+        deref(self.cpp2DResultPtr).timestamp = frame.timestamp # The timestamp is not set elsewhere but it is needed in detector3D
+
+        # 3D model part
+        N = self.detector3DPtr.addObservation(self.cpp2DResultPtr, prepare_observation)
+
+        return N
 
 #    def detect3D(self, frame, user_roi, visualize):
 #
@@ -186,9 +204,6 @@ cdef class Detector_3D_v2:
 #        return pyResult
 
     # Resetting and deallocation
-    def reset_3D_Model(self):
-         self.detector3DPtr.reset()
-
     def __dealloc__(self):
       del self.detector2DPtr
       del self.detector3DPtr
