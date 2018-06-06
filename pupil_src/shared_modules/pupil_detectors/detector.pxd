@@ -24,8 +24,8 @@ cdef extern from '<opencv2/core.hpp>' namespace 'cv':
 
   cdef cppclass Mat :
       Mat() except +
-      Mat( int height, int width, int type, void* data  ) except+
-      Mat( int height, int width, int type ) except+
+      Mat( int height, int width, int type, void* data  ) except +
+      Mat( int height, int width, int type ) except +
 
 cdef extern from '<opencv2/core.hpp>' namespace 'cv':
 
@@ -78,7 +78,7 @@ cdef extern from 'common/types.h':
         Matrix31d normal
         float radius
 
-        #typdefs
+    #typedefs
     ctypedef Matrix31d Vector3
     ctypedef Matrix21d Vector2
     ctypedef vector[vector[Vector3]] Contours3D
@@ -121,7 +121,7 @@ cdef extern from 'common/types.h':
         double modelConfidence
         int modelID
         double modelBirthTimestamp
-        #-------- For visualization ----------------
+        #-------- For visualization --------
         Edges3D edges
         Circle predictedCircle
         vector[ModelDebugProperties] models
@@ -148,8 +148,6 @@ cdef extern from 'common/types.h':
 
     cdef struct Detector3DProperties:
         float model_sensitivity
-
-
 
 
 cdef extern from 'detect_2d.hpp':

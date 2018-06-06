@@ -17,6 +17,7 @@ if not getattr(sys, 'frozen', False):
 
 from .detector_2d import Detector_2D
 from .detector_3d import Detector_3D
+from .detector_3d_v2 import Detector_3D_v2
 from .detector_dummy import Detector_Dummy
 
 

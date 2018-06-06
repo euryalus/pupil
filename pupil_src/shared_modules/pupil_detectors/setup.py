@@ -9,23 +9,23 @@ See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 '''
 
-# # monkey-patch for parallel compilation
-# def parallelCCompile(self, sources, output_dir=None, macros=None, include_dirs=None, debug=0, extra_preargs=None, extra_postargs=None, depends=None):
-#     # those lines are copied from distutils.ccompiler.CCompiler directly
-#     macros, objects, extra_postargs, pp_opts, build = self._setup_compile(output_dir, macros, include_dirs, sources, depends, extra_postargs)
-#     cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
-#     # parallel code
-#     N=4 # number of parallel compilations
-#     import multiprocessing.pool
-#     def _single_compile(obj):
-#         try: src, ext = build[obj]
-#         except KeyError: return
-#         self._compile(obj, src, ext, cc_args, extra_postargs, pp_opts)
-#     # convert to list, imap is evaluated on-demand
-#     list(multiprocessing.pool.ThreadPool(N).imap(_single_compile,objects))
-#     return objects
-# import distutils.ccompiler
-# distutils.ccompiler.CCompiler.compile=parallelCCompile
+# monkey-patch for parallel compilation
+def parallelCCompile(self, sources, output_dir=None, macros=None, include_dirs=None, debug=0, extra_preargs=None, extra_postargs=None, depends=None):
+    # those lines are copied from distutils.ccompiler.CCompiler directly
+    macros, objects, extra_postargs, pp_opts, build = self._setup_compile(output_dir, macros, include_dirs, sources, depends, extra_postargs)
+    cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
+    # parallel code
+    N=16# number of parallel compilations
+    import multiprocessing.pool
+    def _single_compile(obj):
+        try: src, ext = build[obj]
+        except KeyError: return
+        self._compile(obj, src, ext, cc_args, extra_postargs, pp_opts)
+    # convert to list, imap is evaluated on-demand
+    list(multiprocessing.pool.ThreadPool(N).imap(_single_compile,objects))
+    return objects
+import distutils.ccompiler
+distutils.ccompiler.CCompiler.compile=parallelCCompile
 
 from distutils.core import setup
 from distutils.extension import Extension
@@ -107,6 +107,17 @@ extensions = [
         extra_objects = xtra_obj2d,
         depends= dependencies,
         language="c++"),
+     Extension(
+        name="pupil_detectors.detector_3d_v2",
+        sources=['detector_3d_v2.pyx','singleeyefitter/ImageProcessing/cvx.cpp','singleeyefitter/utils.cpp','singleeyefitter/detectorUtils.cpp', 'singleeyefitter/EyeModelFitter.cpp','singleeyefitter/EyeModel.cpp'],
+        include_dirs = include_dirs,
+        libraries = libs,
+        library_dirs = library_dirs,
+        extra_link_args=[], #'-WL,-R/usr/local/lib'
+        extra_compile_args=["-D_USE_MATH_DEFINES","-std=c++11",'-w','-O2'],#,'-O2'], #-w hides warnings
+        extra_objects = xtra_obj2d,
+        depends= dependencies,
+        language="c++"),
 ]
 
 if __name__ == '__main__':
@@ -117,5 +128,5 @@ if __name__ == '__main__':
         author='Pupil Labs',
         author_email='info@pupil-labs.com',
         license='GNU',
-        ext_modules=cythonize(extensions, quiet=True, nthreads=8)
-)
+        ext_modules=cythonize(extensions, quiet=True, nthreads=18)
+    )
