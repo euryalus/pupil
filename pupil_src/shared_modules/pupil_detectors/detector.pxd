@@ -8,7 +8,6 @@ Lesser General Public License (LGPL v3.0).
 See COPYING and COPYING.LESSER for license details.
 ---------------------------------------------------------------------------~(*)
 '''
-
 from libcpp.memory cimport shared_ptr
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
@@ -18,7 +17,6 @@ cdef extern from '<opencv2/core.hpp>':
 
   int CV_8UC1
   int CV_8UC3
-
 
 cdef extern from '<opencv2/core.hpp>' namespace 'cv':
 
@@ -57,7 +55,6 @@ cdef extern from '<Eigen/Eigen>' namespace 'Eigen':
         double * data()
         double& operator[](size_t)
         bint isZero()
-
 
 cdef extern from 'common/types.h':
 
@@ -149,9 +146,7 @@ cdef extern from 'common/types.h':
     cdef struct Detector3DProperties:
         float model_sensitivity
 
-
 cdef extern from 'detect_2d.hpp':
-
 
   cdef cppclass Detector2D:
 
@@ -168,10 +163,10 @@ cdef extern from "singleeyefitter/observation.h" namespace "singleeyefitter":
 
 cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
 
-
     cdef cppclass EyeModelFitter:
 
         cppclass PupilParams:
+
             float theta
             float psi
             float radius
@@ -189,10 +184,10 @@ cdef extern from "singleeyefitter/EyeModelFitter.h" namespace "singleeyefitter":
 
 cdef extern from "singleeyefitter/EyeModel_v2.h" namespace "singleeyefitter":
 
-
     cdef cppclass EyeModel_v2:
 
         cppclass PupilParams:
+
             float theta
             float psi
             float radius
@@ -203,7 +198,9 @@ cdef extern from "singleeyefitter/EyeModel_v2.h" namespace "singleeyefitter":
         Sphere[double] optimizeModel()
 
         void reset()
+        int getSupportingPupilsSize()
         Sphere[double] getSphere()
+        Sphere[double] getInitialSphere()
         double getFocalLength()
 
 

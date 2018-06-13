@@ -35,7 +35,7 @@ namespace singleeyefitter {
             Sphere getSphere() const {return mSphere;};
             Sphere getInitialSphere() const {return mInitialSphere;};
             double getBirthTimestamp() const {return mBirthTimestamp;};
-            int getSupportingPupilSize() const {return mSupportingPupilSize;};
+            int getSupportingPupilsSize() const {return mSupportingPupilsSize;};
             double getFocalLength() const {return mFocalLength;};
 
         private:
@@ -57,7 +57,6 @@ namespace singleeyefitter {
             Sphere initialiseModel();
 
             const Circle& selectUnprojectedCircle(const Sphere& sphere, const std::pair<const Circle, const Circle>& circles) const;
-            void initialiseSingleObservation(const Sphere& sphere, Pupil& pupil) const;
             Circle getIntersectedCircle(const Sphere& sphere, const Circle& circle) const;
             Circle circleFromParams(const Sphere& eye, const PupilParams& params) const;
 
@@ -68,7 +67,7 @@ namespace singleeyefitter {
             Sphere mSphere;
             Sphere mInitialSphere;
             std::vector<Pupil> mSupportingPupils;
-            int mSupportingPupilSize;
+            int mSupportingPupilsSize;
 
             Eigen::Matrix<double,2,Eigen::Dynamic> pupil_centers;
             Eigen::Matrix<double,3,Eigen::Dynamic> gaze_vector_candidates_1;

@@ -113,6 +113,15 @@ cdef class Detector_3D_v2:
                   'radius': sphere_cpp.radius}
         return sphere
 
+    def get_initial_sphere(self):
+        cdef Sphere[double] sphere_cpp = self.detector3DPtr.getInitialSphere()
+        sphere = {'center': np.array([sphere_cpp.center[0],sphere_cpp.center[1],sphere_cpp.center[2]]),
+                  'radius': sphere_cpp.radius}
+        return sphere
+
+    def get_number_of_supporting_pupils(self):
+        return self.detector3DPtr.getSupportingPupilsSize()
+
     # Relaying observations, performing 2D and 3D detection, etc.
     def detect2D(self, frame, user_roi, visualize):
 
@@ -182,6 +191,13 @@ cdef class Detector_3D_v2:
         N = self.detector3DPtr.addObservation(self.cpp2DResultPtr, prepare_observation)
 
         return N
+
+    def optimize_model(self):
+
+        cdef Sphere[double] sphere_cpp = self.detector3DPtr.optimizeModel()
+        sphere = {'center': np.array([sphere_cpp.center[0], sphere_cpp.center[1], sphere_cpp.center[2]]),
+                  'radius': sphere_cpp.radius}
+        return sphere
 
 #    def detect3D(self, frame, user_roi, visualize):
 #
